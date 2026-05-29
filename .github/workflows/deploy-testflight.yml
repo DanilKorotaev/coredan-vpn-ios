@@ -1,0 +1,70 @@
+# Manual TestFlight upload after GitHub Secrets are configured (see docs/CI_CD.md).
+name: Deploy TestFlight
+
+on:
+  workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  beta:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22.x"
+
+      - name: Cache Libbox.xcframework
+        uses: actions/cache@v4
+        with:
+          path: ThirdParty/Libbox.xcframework
+          key: libbox-${{ hashFiles('scripts/install_libbox.sh') }}-v1.13.12
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Write Secrets.xcconfig
+        env:
+          TEAM_ID: ${{ secrets.TEAM_ID }}
+        run: |
+          if [ -z "$TEAM_ID" ]; then
+            echo "::error::Add GitHub secret TEAM_ID (Apple Developer Team ID)"
+            exit 1
+          fi
+          cat > Config/Secrets.xcconfig <<EOF
+          // Generated in CI — do not commit
+          DEVELOPMENT_TEAM = ${TEAM_ID}
+          EOF
+
+      - name: Bootstrap project
+        run: ./scripts/ci/bootstrap.sh
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: .ruby-version
+          bundler-cache: true
+
+      - name: Fastlane beta
+        env:
+          TEAM_ID: ${{ secrets.TEAM_ID }}
+          APP_IDENTIFIER: ${{ secrets.APP_IDENTIFIER }}
+          EXTENSION_IDENTIFIER: ${{ secrets.EXTENSION_IDENTIFIER }}
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+          MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
+          MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_CONTENT: ${{ secrets.ASC_KEY_CONTENT }}
+          GITHUB_RUN_NUMBER: ${{ github.run_number }}
+        run: bundle exec fastlane beta

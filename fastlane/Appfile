@@ -1,0 +1,6 @@
+# App identifier and team — override via env for CI.
+# See docs/FASTLANE.md
+
+app_identifier(ENV.fetch("APP_IDENTIFIER", "com.coredan.CoreDanVPN"))
+
+team_id(ENV.fetch("TEAM_ID", ""))

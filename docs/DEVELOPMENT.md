@@ -17,10 +17,17 @@ xcodegen generate
 ## Tests
 
 ```bash
-xcodebuild -scheme CoreDanVPNApp -destination 'platform=iOS Simulator,name=iPhone 16' test
+./scripts/ci/bootstrap.sh
+bundle exec fastlane test
 ```
 
-(Fastlane can be added later like Knowledge Base App.)
+Or directly:
+
+```bash
+xcodebuild -scheme CoreDanVPNApp -destination 'platform=iOS Simulator,name=iPhone 16' test CODE_SIGNING_ALLOWED=NO
+```
+
+CI/CD: [CI_CD.md](CI_CD.md).
 
 ## Git
 

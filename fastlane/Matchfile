@@ -1,0 +1,20 @@
+# Match: encrypted certs/profiles in a private Git repo.
+# First-time (local):
+#   export MATCH_PASSWORD='...'
+#   export MATCH_GIT_URL='https://github.com/YOU/coredan-vpn-certificates.git'
+#   bundle exec fastlane match appstore
+#
+# CI: MATCH_GIT_URL + MATCH_PASSWORD (+ optional MATCH_GIT_BASIC_AUTHORIZATION).
+
+git_url(ENV.fetch("MATCH_GIT_URL", "https://github.com/CHANGE_ME/coredan-vpn-certificates.git"))
+
+storage_mode("git")
+
+type("appstore")
+
+app_identifier(
+  [
+    ENV.fetch("APP_IDENTIFIER", "com.coredan.CoreDanVPN"),
+    ENV.fetch("EXTENSION_IDENTIFIER", "com.coredan.CoreDanVPN.PacketTunnel"),
+  ]
+)

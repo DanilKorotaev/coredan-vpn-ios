@@ -1,5 +1,7 @@
 # CoreDan VPN (iOS)
 
+[![CI](https://github.com/DanilKorotaev/coredan-vpn-ios/actions/workflows/ci.yml/badge.svg)](https://github.com/DanilKorotaev/coredan-vpn-ios/actions/workflows/ci.yml)
+
 Open-source iOS client for **Shadowsocks** profiles with optional plugins (`obfs-local`, `v2ray-plugin`). Import a `ss://` link or enter server fields manually. No server credentials are bundled in the app.
 
 ## Requirements
@@ -41,6 +43,8 @@ open CoreDanVPN.xcodeproj
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Modules, tunnel boundary |
 | [docs/SETUP.md](docs/SETUP.md) | Signing, capabilities |
 | [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | XcodeGen, tests |
+| [docs/CI_CD.md](docs/CI_CD.md) | GitHub Actions, TestFlight secrets |
+| [docs/FASTLANE.md](docs/FASTLANE.md) | Fastlane lanes |
 | [docs/CODING_STANDARDS.md](docs/CODING_STANDARDS.md) | Protocol-first, no secrets in git |
 
 ## Security

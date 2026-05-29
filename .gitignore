@@ -9,10 +9,13 @@ build/
 # Local secrets
 Config/Secrets.xcconfig
 
-# Ruby / Fastlane (later)
+# Ruby / Fastlane
 vendor/bundle/
+.bundle/
 fastlane/report.xml
+fastlane/README.md
 fastlane/test_output/
+fastlane/build_logs/
 
 # Libbox (build locally — GPL, large binary)
 ThirdParty/Libbox.xcframework/

@@ -1,0 +1,141 @@
+# frozen_string_literal: true
+
+require "json"
+require "shellwords"
+
+opt_out_usage
+
+default_platform(:ios)
+
+platform :ios do
+  desc "Run unit tests on iOS Simulator (no signing). Fails if line coverage < MIN_COVERAGE (default 15)."
+  lane :test do
+    setup_ci if ENV["CI"]
+
+    device = ENV.fetch("SCAN_DEVICE", "iPhone 16")
+    output_dir = File.expand_path("test_output", __dir__)
+
+    scan(
+      scheme: "CoreDanVPNApp",
+      device: device,
+      clean: true,
+      code_coverage: true,
+      result_bundle: true,
+      output_directory: output_dir,
+      buildlog_path: File.expand_path("build_logs", __dir__),
+      xcargs: "CODE_SIGNING_ALLOWED=NO"
+    )
+
+    enforce_line_coverage_threshold(output_dir)
+  end
+
+  desc "Build App Store IPA and upload to TestFlight (app + Packet Tunnel extension)."
+  lane :beta do
+    setup_ci if ENV["CI"]
+
+    app_id = ENV["APP_IDENTIFIER"].to_s.strip
+    app_id = "com.coredan.CoreDanVPN" if app_id.empty?
+
+    extension_id = ENV["EXTENSION_IDENTIFIER"].to_s.strip
+    extension_id = "com.coredan.CoreDanVPN.PacketTunnel" if extension_id.empty?
+
+    team_id = ENV.fetch("TEAM_ID").to_s.strip
+    UI.user_error!("Set TEAM_ID (Apple Developer Team ID)") if team_id.empty?
+
+    app_store_connect_api_key(
+      key_id: ENV.fetch("ASC_KEY_ID"),
+      issuer_id: ENV.fetch("ASC_ISSUER_ID"),
+      key_content: ENV.fetch("ASC_KEY_CONTENT"),
+      is_key_content_base64: false
+    )
+
+    match_params = {
+      type: "appstore",
+      readonly: is_ci,
+      app_identifier: [app_id, extension_id],
+    }
+    match_params[:git_url] = ENV["MATCH_GIT_URL"] if ENV["MATCH_GIT_URL"] && !ENV["MATCH_GIT_URL"].empty?
+    if ENV["MATCH_GIT_BASIC_AUTHORIZATION"] && !ENV["MATCH_GIT_BASIC_AUTHORIZATION"].empty?
+      match_params[:git_basic_authorization] = ENV["MATCH_GIT_BASIC_AUTHORIZATION"]
+    end
+    match(**match_params)
+
+    increment_build_number(
+      xcodeproj: "CoreDanVPN.xcodeproj",
+      build_number: ENV["GITHUB_RUN_NUMBER"]
+    ) if ENV["CI"] && ENV["GITHUB_RUN_NUMBER"]
+
+    if is_ci
+      mapping = lane_context[:MATCH_PROVISIONING_PROFILE_MAPPING] || {}
+      app_prof = mapping[app_id]
+      ext_prof = mapping[extension_id]
+      UI.user_error!("Match missing profile for #{app_id} or #{extension_id}") unless app_prof && ext_prof
+
+      update_code_signing_settings(
+        path: "CoreDanVPN.xcodeproj",
+        use_automatic_signing: false,
+        targets: ["CoreDanVPNApp"],
+        build_configurations: ["Release"],
+        team_id: team_id,
+        code_sign_identity: "Apple Distribution",
+        profile_name: app_prof
+      )
+      update_code_signing_settings(
+        path: "CoreDanVPN.xcodeproj",
+        use_automatic_signing: false,
+        targets: ["CoreDanVPNExtension"],
+        build_configurations: ["Release"],
+        team_id: team_id,
+        code_sign_identity: "Apple Distribution",
+        profile_name: ext_prof
+      )
+    end
+
+    build_app(
+      scheme: "CoreDanVPNApp",
+      export_method: "app-store",
+      export_options: {
+        teamID: team_id,
+      }
+    )
+
+    upload_to_testflight(
+      skip_waiting_for_build_processing: true
+    )
+
+    write_ci_testflight_metadata(
+      app_identifier: app_id,
+      xcodeproj: "CoreDanVPN.xcodeproj",
+      target: "CoreDanVPNApp"
+    )
+  end
+end
+
+def write_ci_testflight_metadata(app_identifier:, xcodeproj:, target:)
+  output_dir = File.expand_path("test_output", __dir__)
+  FileUtils.mkdir_p(output_dir)
+  payload = {
+    "marketing_version" => get_version_number(xcodeproj: xcodeproj, target: target),
+    "build_number" => get_build_number(xcodeproj: xcodeproj),
+    "app_identifier" => app_identifier,
+  }
+  File.write(File.join(output_dir, "ci_testflight.json"), JSON.pretty_generate(payload))
+  UI.success("Wrote #{output_dir}/ci_testflight.json")
+end
+
+def enforce_line_coverage_threshold(output_dir)
+  xcresult = Dir.glob(File.join(output_dir, "*.xcresult")).first
+  UI.user_error!("No .xcresult in #{output_dir}") unless xcresult
+
+  min = ENV.fetch("MIN_COVERAGE", "15").to_f
+  json = `xcrun xccov view --report --json #{Shellwords.escape(xcresult)}`
+  UI.user_error!("xccov failed: #{json}") unless $?.success?
+
+  data = JSON.parse(json)
+  app_target = data.fetch("targets", []).find { |t| t["name"] == "CoreDanVPNApp.app" }
+  UI.user_error!("CoreDanVPNApp.app not found in coverage report") unless app_target
+
+  coverage = (app_target["lineCoverage"].to_f * 100).round(4)
+  UI.success("Line coverage (CoreDanVPNApp.app): #{coverage}% (minimum #{min}%)")
+  UI.user_error!("Coverage #{coverage}% is below minimum #{min}%") if coverage < min
+end
