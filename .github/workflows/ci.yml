@@ -13,6 +13,8 @@ jobs:
     runs-on: macos-latest
     env:
       MIN_COVERAGE: "15"
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -72,4 +74,14 @@ jobs:
           bundler-cache: true
 
       - name: Run tests (Fastlane)
+        id: tests
+        continue-on-error: true
         run: bundle exec fastlane test
+
+      - name: Notify Telegram (tests)
+        if: always()
+        run: python3 scripts/ci/telegram_notify.py tests --outcome ${{ steps.tests.outcome }}
+
+      - name: Fail if tests failed
+        if: steps.tests.outcome != 'success'
+        run: exit 1
