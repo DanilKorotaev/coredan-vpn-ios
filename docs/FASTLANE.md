@@ -25,7 +25,7 @@ bundle exec fastlane test
 App Store archive + TestFlight. Requires Match + ASC API key — see [CI_CD.md](CI_CD.md).
 
 ```bash
-export TEAM_ID="..."
+export TEAM_ID="66C9VGAZR5"
 export ASC_KEY_ID="..."
 export ASC_ISSUER_ID="..."
 export ASC_KEY_CONTENT="$(cat AuthKey_XXX.p8)"

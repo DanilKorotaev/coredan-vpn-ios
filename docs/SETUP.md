@@ -1,12 +1,12 @@
 # Setup
 
-## 1. Secrets
+## 1. Secrets (optional)
 
 ```bash
 cp Config/Secrets.xcconfig.example Config/Secrets.xcconfig
 ```
 
-Set `DEVELOPMENT_TEAM` to your 10-character Team ID.
+Signing uses **Team ID `66C9VGAZR5`** (CoreDan Apple account) from `project.yml`, same as Knowledge Base App. Use `Secrets.xcconfig` only for local overrides; CI can set `DEVELOPMENT_TEAM` via the `TEAM_ID` secret when deploying TestFlight.
 
 ## 2. Libbox (sing-box runtime)
 

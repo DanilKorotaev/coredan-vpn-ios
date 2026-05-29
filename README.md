@@ -16,7 +16,7 @@ Open-source iOS client for **Shadowsocks** profiles with optional plugins (`obfs
 ```bash
 cd coredan-vpn-ios
 cp Config/Secrets.xcconfig.example Config/Secrets.xcconfig
-# Edit Secrets.xcconfig — set DEVELOPMENT_TEAM to your Team ID
+# Optional: cp Config/Secrets.xcconfig.example → Secrets.xcconfig (team ID is in project.yml)
 brew install go          # once, for Libbox build
 ./scripts/install_libbox.sh
 xcodegen generate

@@ -35,7 +35,7 @@ Create a **private empty repo** for Match (e.g. `coredan-vpn-certificates`). Reg
 
 | Secret | Required | Description |
 |--------|----------|-------------|
-| `TEAM_ID` | Yes | Apple Developer Team ID (10 chars) |
+| `TEAM_ID` | Yes | Apple Developer Team ID — `66C9VGAZR5` (CoreDan, same as Knowledge Base App) |
 | `MATCH_PASSWORD` | Yes | Passphrase for Match encrypted repo |
 | `MATCH_GIT_URL` | Yes | HTTPS URL of private certs repo |
 | `MATCH_GIT_BASIC_AUTHORIZATION` | If private HTTPS | `base64` of `x-access-token:GITHUB_PAT` |
@@ -52,7 +52,7 @@ Create a **private empty repo** for Match (e.g. `coredan-vpn-certificates`). Reg
 ```bash
 export MATCH_PASSWORD='your-strong-passphrase'
 export MATCH_GIT_URL='https://github.com/YOU/coredan-vpn-certificates.git'
-export TEAM_ID='XXXXXXXXXX'
+export TEAM_ID='66C9VGAZR5'
 
 bundle exec fastlane match appstore
 ```

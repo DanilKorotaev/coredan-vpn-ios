@@ -3,4 +3,8 @@
 
 app_identifier(ENV.fetch("APP_IDENTIFIER", "com.coredan.CoreDanVPN"))
 
-team_id(ENV.fetch("TEAM_ID", ""))
+# Optional until you use lanes that talk to Apple ID directly (e.g. some match flows):
+# apple_id("you@example.com")
+
+# Apple Developer Team ID — gym export needs this when Xcode omits team from archive metadata:
+team_id(ENV.fetch("TEAM_ID", "66C9VGAZR5"))

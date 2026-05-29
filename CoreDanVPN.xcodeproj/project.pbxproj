@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 63;
+	objectVersion = 77;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -173,7 +173,7 @@
 		4EE8B549DA67D6BB58EA9891 /* SingBoxConfigBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SingBoxConfigBuilder.swift; sourceTree = "<group>"; };
 		54F61AF7CD0445AC8AF758D6 /* Collection+Group.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Collection+Group.swift"; sourceTree = "<group>"; };
 		550C70E83E978EEF9D5EE478 /* LibboxRunBlocking.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibboxRunBlocking.swift; sourceTree = "<group>"; };
-		567A61841EEE43C16080EFD0 /* CoreDanVPNApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CoreDanVPNApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		567A61841EEE43C16080EFD0 /* CoreDanVPNApp.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = CoreDanVPNApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		621E9F40A095FF287D61998B /* NSRegularExpression+Matches.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NSRegularExpression+Matches.swift"; sourceTree = "<group>"; };
 		630987A9040664C927A2C96C /* UserDefaultsAddView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserDefaultsAddView.swift; sourceTree = "<group>"; };
 		6543A33F50D3DD497D78ED90 /* AddProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddProfileView.swift; sourceTree = "<group>"; };
@@ -205,7 +205,7 @@
 		BC6DAC059C65223F073FCF9D /* UserDefaultsKeyRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserDefaultsKeyRegistry.swift; sourceTree = "<group>"; };
 		BCFD0F1A85D7F6FAF69F1651 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		C98F9DA4E618C589219A3729 /* ProfilesViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfilesViewModel.swift; sourceTree = "<group>"; };
-		CB8ED6E859A1D10A3701E6C8 /* CoreDanVPNAppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CoreDanVPNAppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		CB8ED6E859A1D10A3701E6C8 /* CoreDanVPNAppTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = CoreDanVPNAppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		CD9FE941C14738DB918F54A6 /* LogSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogSettingsView.swift; sourceTree = "<group>"; };
 		D0EDD36A4902213A265F38BD /* UserDefaultsDetailView+ViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UserDefaultsDetailView+ViewModel.swift"; sourceTree = "<group>"; };
 		D4652FAD959321C20E5E8154 /* DebugMenuView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugMenuView.swift; sourceTree = "<group>"; };
@@ -218,7 +218,7 @@
 		EEDDFB4091DFE028DDA1D909 /* Logger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logger.swift; sourceTree = "<group>"; };
 		F784F6CEEB10D118352B6AB2 /* ProfileRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileRepository.swift; sourceTree = "<group>"; };
 		F8ED0A1168B14866204A8AF3 /* ThreadSafeArray.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThreadSafeArray.swift; sourceTree = "<group>"; };
-		FAB660C24E2C9F0B8BC7D04B /* CoreDanVPNExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = CoreDanVPNExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		FAB660C24E2C9F0B8BC7D04B /* CoreDanVPNExtension.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = CoreDanVPNExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		FAD1EB610162E8FA1B8155C9 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		FFEB18B9C8BE0C0D8270AD88 /* UserDefault+PropertyWrapper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UserDefault+PropertyWrapper.swift"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -614,10 +614,15 @@
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
+					1B3501FD86F9094F0589C29A = {
+						DevelopmentTeam = 66C9VGAZR5;
+					};
 					BCC4D30A2F601FC80D77D474 = {
+						DevelopmentTeam = 66C9VGAZR5;
 						ProvisioningStyle = Automatic;
 					};
 					D1A0E32706EE70055B30A23E = {
+						DevelopmentTeam = 66C9VGAZR5;
 						ProvisioningStyle = Automatic;
 					};
 				};
@@ -632,6 +637,7 @@
 			);
 			mainGroup = 21F2AC78F0B41B5ED50A2162;
 			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -792,7 +798,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = CoreDanVPNApp/CoreDanVPN.entitlements;
-				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_IDENTITY = "";
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = 66C9VGAZR5;
 				INFOPLIST_FILE = CoreDanVPNApp/Resources/Info.plist;
@@ -869,6 +875,7 @@
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = 66C9VGAZR5;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
@@ -921,6 +928,7 @@
 		};
 		560CBAC69C69917D73F84977 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 9548267ABD5FCD95FB04CBC1 /* Debug.xcconfig */;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				GENERATE_INFOPLIST_FILE = YES;
@@ -973,6 +981,7 @@
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = 66C9VGAZR5;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
@@ -997,6 +1006,7 @@
 		};
 		9144BA18F39CB3E1FD5AFB0D /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 3D6B435D0A696053B410470A /* Release.xcconfig */;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				GENERATE_INFOPLIST_FILE = YES;
@@ -1017,7 +1027,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = CoreDanVPNApp/CoreDanVPN.entitlements;
-				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_IDENTITY = "";
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = 66C9VGAZR5;
 				INFOPLIST_FILE = CoreDanVPNApp/Resources/Info.plist;
