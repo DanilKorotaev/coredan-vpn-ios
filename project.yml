@@ -37,6 +37,7 @@ targets:
     info:
       path: CoreDanVPNApp/Resources/Info.plist
       properties:
+        CFBundleIconName: AppIcon
         UILaunchStoryboardName: LaunchScreen
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait

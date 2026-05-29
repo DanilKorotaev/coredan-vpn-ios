@@ -27,6 +27,7 @@
 		24784A20CD92C408528F85C5 /* UserDefaultsDebugModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8929D22E972D7A066DDAF906 /* UserDefaultsDebugModels.swift */; };
 		2577755457F125FB7FA6C694 /* SingBoxConfigBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4EE8B549DA67D6BB58EA9891 /* SingBoxConfigBuilder.swift */; };
 		25B8FF92C520B470B1A416A8 /* LogPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1E9F84D67B98FADE400791 /* LogPreviewView.swift */; };
+		26D2D0A7F36C205F8E305D05 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 14AD7FF36A26FCB94919E7A1 /* Assets.xcassets */; };
 		2703ABE37F9B40B66B98C72B /* LogFilesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = D82B017CD299453B936AE331 /* LogFilesProvider.swift */; };
 		28C2DC4C19B790A15B3B6687 /* SSURLParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC3986149217F28731958BA7 /* SSURLParser.swift */; };
 		2FBE199AD68BB1E8F5FBA7E9 /* LogsMenuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3E667369CF9589C592E81C0 /* LogsMenuView.swift */; };
@@ -144,6 +145,7 @@
 		0B1EB0AC489A8F01354D7B4B /* Libbox.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = Libbox.xcframework; path = ThirdParty/Libbox.xcframework; sourceTree = "<group>"; };
 		0C636447DE2B6399E21815A7 /* AppConstants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConstants.swift; sourceTree = "<group>"; };
 		0D39862D170E4D39423F9C8B /* SearchTextFieldConfigurator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchTextFieldConfigurator.swift; sourceTree = "<group>"; };
+		14AD7FF36A26FCB94919E7A1 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		158B9AA187B9DF7BE8A4F57D /* SingBoxConfigBuilderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SingBoxConfigBuilderTests.swift; sourceTree = "<group>"; };
 		1631079E11A24B3D661B11D0 /* UserDefaultsDebugValueCodec.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserDefaultsDebugValueCodec.swift; sourceTree = "<group>"; };
 		16DABD5434E2E37B98A5202F /* UserDefaultsKey.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserDefaultsKey.swift; sourceTree = "<group>"; };
@@ -290,6 +292,7 @@
 		3DBB5554232A742893212600 /* Resources */ = {
 			isa = PBXGroup;
 			children = (
+				14AD7FF36A26FCB94919E7A1 /* Assets.xcassets */,
 				709392CC7A529A09EF5B965B /* Info.plist */,
 				8613B84E38076FADC538DC67 /* LaunchScreen.storyboard */,
 			);
@@ -653,6 +656,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				26D2D0A7F36C205F8E305D05 /* Assets.xcassets in Resources */,
 				1D2A187E7726722FA9A73146 /* LaunchScreen.storyboard in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
