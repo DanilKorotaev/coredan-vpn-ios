@@ -1,0 +1,91 @@
+name: CoreDanVPN
+options:
+  bundleIdPrefix: com.coredan
+  deploymentTarget:
+    iOS: "18.0"
+  createIntermediateGroups: true
+  groupSortPosition: top
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    CURRENT_PROJECT_VERSION: "1"
+    MARKETING_VERSION: "0.1.0"
+configFiles:
+  Debug: Config/Debug.xcconfig
+  Release: Config/Release.xcconfig
+targets:
+  CoreDanVPNApp:
+    type: application
+    platform: iOS
+    sources:
+      - path: CoreDanVPNApp
+      - path: Shared
+    dependencies:
+      - target: CoreDanVPNExtension
+        embed: true
+    settings:
+      base:
+        CODE_SIGN_STYLE: Automatic
+        CODE_SIGN_ENTITLEMENTS: CoreDanVPNApp/CoreDanVPN.entitlements
+        PRODUCT_BUNDLE_IDENTIFIER: com.coredan.CoreDanVPN
+        INFOPLIST_KEY_CFBundleDisplayName: CoreDan VPN
+        TARGETED_DEVICE_FAMILY: "1"
+    info:
+      path: CoreDanVPNApp/Resources/Info.plist
+      properties:
+        UILaunchStoryboardName: LaunchScreen
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        ITSAppUsesNonExemptEncryption: false
+  CoreDanVPNExtension:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: CoreDanVPNExtension
+      - path: Shared
+    dependencies:
+      - framework: ThirdParty/Libbox.xcframework
+        embed: false
+    settings:
+      base:
+        OTHER_LDFLAGS: -lresolv
+        CODE_SIGN_STYLE: Automatic
+        CODE_SIGN_ENTITLEMENTS: CoreDanVPNExtension/CoreDanVPNExtension.entitlements
+        PRODUCT_BUNDLE_IDENTIFIER: com.coredan.CoreDanVPN.PacketTunnel
+        GENERATE_INFOPLIST_FILE: NO
+        SKIP_INSTALL: YES
+    info:
+      path: CoreDanVPNExtension/Info.plist
+      properties:
+        CFBundleDisplayName: CoreDan VPN Tunnel
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.networkextension.packet-tunnel
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).PacketTunnelProvider
+  CoreDanVPNAppTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: CoreDanVPNAppTests
+    dependencies:
+      - target: CoreDanVPNApp
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+schemes:
+  CoreDanVPNApp:
+    build:
+      targets:
+        CoreDanVPNApp: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+      gatherCoverageData: true
+      targets:
+        - CoreDanVPNAppTests
+    profile:
+      config: Release
+    analyze:
+      config: Debug
+    archive:
+      config: Release

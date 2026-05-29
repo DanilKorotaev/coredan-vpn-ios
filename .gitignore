@@ -1,0 +1,21 @@
+# Xcode
+**/xcuserdata/
+*.xcuserstate
+DerivedData/
+build/
+*.ipa
+*.dSYM.zip
+
+# Local secrets
+Config/Secrets.xcconfig
+
+# Ruby / Fastlane (later)
+vendor/bundle/
+fastlane/report.xml
+fastlane/test_output/
+
+# Libbox (build locally — GPL, large binary)
+ThirdParty/Libbox.xcframework/
+
+# macOS
+.DS_Store
