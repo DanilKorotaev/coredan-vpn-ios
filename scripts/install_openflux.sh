@@ -37,7 +37,7 @@ fi
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
-echo "Cloning OpenFlux ($OPENFLUX_REF)…"
+echo "Cloning OpenFlux (${OPENFLUX_REF})..."
 git clone --depth 1 --branch "$OPENFLUX_REF" https://github.com/p1neappleXpress/OpenFlux.git "$TMP/OpenFlux" \
   || git clone --depth 1 https://github.com/p1neappleXpress/OpenFlux.git "$TMP/OpenFlux"
 
@@ -49,7 +49,7 @@ fi
 
 PACKET="$TMP/OpenFlux/export_ios_packet.go"
 if ! grep -q 'vyandex' "$PACKET"; then
-  echo "Patching export_ios_packet.go for vyandex (VOLGA)…"
+  echo "Patching export_ios_packet.go for vyandex (VOLGA)..."
   python3 - <<'PY' "$PACKET"
 import pathlib, sys
 path = pathlib.Path(sys.argv[1])
@@ -88,12 +88,12 @@ build_slice() {
     export GOARCH=arm64
     export CGO_ENABLED=1
     export SDK_PATH="$sdk"
-    export CC="$CLANG -target $target_triple -isysroot $sdk $min_flag"
-    export CXX="${CLANG}++ -target $target_triple -isysroot $sdk $min_flag"
-    export CGO_CFLAGS="-target $target_triple -isysroot $sdk $min_flag"
-    export CGO_LDFLAGS="-target $target_triple -isysroot $sdk $min_flag"
+    export CC="$CLANG -target ${target_triple} -isysroot $sdk $min_flag"
+    export CXX="${CLANG}++ -target ${target_triple} -isysroot $sdk $min_flag"
+    export CGO_CFLAGS="-target ${target_triple} -isysroot $sdk $min_flag"
+    export CGO_LDFLAGS="-target ${target_triple} -isysroot $sdk $min_flag"
 
-    echo "Building liboflux for $target_triple…"
+    echo "Building liboflux for ${target_triple}..."
     go build \
       -buildmode=c-archive \
       -tags ios \
