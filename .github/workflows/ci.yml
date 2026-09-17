@@ -27,7 +27,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.22.x"
+          go-version: "1.26.x"
 
       - name: Cache Libbox.xcframework
         id: libbox-cache
@@ -35,6 +35,13 @@ jobs:
         with:
           path: ThirdParty/Libbox.xcframework
           key: libbox-${{ hashFiles('scripts/install_libbox.sh') }}-v1.13.12
+
+      - name: Cache OpenFlux liboflux
+        id: openflux-cache
+        uses: actions/cache@v4
+        with:
+          path: ThirdParty/OpenFlux
+          key: openflux-${{ hashFiles('scripts/install_openflux.sh') }}-${{ hashFiles('Config/OpenFlux.xcconfig') }}
 
       - name: Install XcodeGen
         run: brew install xcodegen

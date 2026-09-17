@@ -8,6 +8,9 @@ struct SingBoxConfigBuilder: Sendable {
     private let iosTunnelMTU = 4064
 
     func build(profile: ServerProfile) throws -> String {
+        guard profile.kind == .shadowsocks else {
+            throw SingBoxConfigBuilderError.notShadowsocks
+        }
         var outbound: [String: Any] = [
             "type": "shadowsocks",
             "tag": "proxy",
@@ -112,4 +115,5 @@ struct SingBoxConfigBuilder: Sendable {
 
 enum SingBoxConfigBuilderError: Error {
     case encodingFailed
+    case notShadowsocks
 }

@@ -80,9 +80,15 @@ final class ProfilesViewModel: ObservableObject {
         default:
             guard let profile = selectedProfile else { return }
             do {
-                let json = try configBuilder.build(profile: profile)
-                log.debugInfo("sing-box config built (\(json.count) bytes)")
-                try await vpn.connect(profile: profile, singBoxJSON: json)
+                switch profile.kind {
+                case .shadowsocks:
+                    let json = try configBuilder.build(profile: profile)
+                    log.debugInfo("sing-box config built (\(json.count) bytes)")
+                    try await vpn.connect(profile: profile, singBoxJSON: json)
+                case .openflux:
+                    log.debugInfo("OpenFlux connect \(profile.openfluxTransport ?? "?")")
+                    try await vpn.connect(profile: profile, singBoxJSON: "")
+                }
                 status = await vpn.status()
                 if case .disconnected = status, let tunnelError = await vpn.lastTunnelError() {
                     status = .error(tunnelError)

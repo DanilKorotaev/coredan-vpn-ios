@@ -39,6 +39,9 @@ platform :ios do
     extension_id = ENV["EXTENSION_IDENTIFIER"].to_s.strip
     extension_id = "com.coredan.CoreDanVPN.PacketTunnel" if extension_id.empty?
 
+    openflux_id = ENV["OPENFLUX_EXTENSION_IDENTIFIER"].to_s.strip
+    openflux_id = "com.coredan.CoreDanVPN.OpenFluxTunnel" if openflux_id.empty?
+
     team_id = ENV.fetch("TEAM_ID").to_s.strip
     UI.user_error!("Set TEAM_ID (Apple Developer Team ID)") if team_id.empty?
 
@@ -49,10 +52,11 @@ platform :ios do
       is_key_content_base64: false
     )
 
+    identifiers = [app_id, extension_id, openflux_id]
     match_params = {
       type: "appstore",
       readonly: is_ci,
-      app_identifier: [app_id, extension_id],
+      app_identifier: identifiers,
     }
     match_params[:git_url] = ENV["MATCH_GIT_URL"] if ENV["MATCH_GIT_URL"] && !ENV["MATCH_GIT_URL"].empty?
     if ENV["MATCH_GIT_BASIC_AUTHORIZATION"] && !ENV["MATCH_GIT_BASIC_AUTHORIZATION"].empty?
@@ -69,7 +73,8 @@ platform :ios do
       mapping = lane_context[:MATCH_PROVISIONING_PROFILE_MAPPING] || {}
       app_prof = mapping[app_id]
       ext_prof = mapping[extension_id]
-      UI.user_error!("Match missing profile for #{app_id} or #{extension_id}") unless app_prof && ext_prof
+      ofx_prof = mapping[openflux_id]
+      UI.user_error!("Match missing profile for #{app_id}, #{extension_id}, or #{openflux_id}") unless app_prof && ext_prof && ofx_prof
 
       update_code_signing_settings(
         path: "CoreDanVPN.xcodeproj",
@@ -88,6 +93,15 @@ platform :ios do
         team_id: team_id,
         code_sign_identity: "Apple Distribution",
         profile_name: ext_prof
+      )
+      update_code_signing_settings(
+        path: "CoreDanVPN.xcodeproj",
+        use_automatic_signing: false,
+        targets: ["CoreDanOpenFluxExtension"],
+        build_configurations: ["Release"],
+        team_id: team_id,
+        code_sign_identity: "Apple Distribution",
+        profile_name: ofx_prof
       )
     end
 

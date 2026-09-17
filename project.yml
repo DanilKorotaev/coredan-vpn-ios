@@ -24,6 +24,8 @@ targets:
     dependencies:
       - target: CoreDanVPNExtension
         embed: true
+      - target: CoreDanOpenFluxExtension
+        embed: true
     settings:
       base:
         CODE_SIGN_STYLE: Automatic
@@ -48,6 +50,8 @@ targets:
     sources:
       - path: CoreDanVPNExtension
       - path: Shared
+        excludes:
+          - OpenFlux/**
     dependencies:
       - framework: ThirdParty/Libbox.xcframework
         embed: false
@@ -64,6 +68,30 @@ targets:
       path: CoreDanVPNExtension/Info.plist
       properties:
         CFBundleDisplayName: CoreDan VPN Tunnel
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.networkextension.packet-tunnel
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).PacketTunnelProvider
+  CoreDanOpenFluxExtension:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: CoreDanOpenFluxExtension
+      - path: Shared
+    configFiles:
+      Debug: Config/OpenFlux.xcconfig
+      Release: Config/OpenFlux.xcconfig
+    settings:
+      base:
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: "66C9VGAZR5"
+        CODE_SIGN_ENTITLEMENTS: CoreDanOpenFluxExtension/CoreDanOpenFluxExtension.entitlements
+        PRODUCT_BUNDLE_IDENTIFIER: com.coredan.CoreDanVPN.OpenFluxTunnel
+        GENERATE_INFOPLIST_FILE: NO
+        SKIP_INSTALL: YES
+    info:
+      path: CoreDanOpenFluxExtension/Info.plist
+      properties:
+        CFBundleDisplayName: CoreDan OpenFlux
         NSExtension:
           NSExtensionPointIdentifier: com.apple.networkextension.packet-tunnel
           NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).PacketTunnelProvider

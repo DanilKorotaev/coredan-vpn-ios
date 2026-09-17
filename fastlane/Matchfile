@@ -16,5 +16,6 @@ app_identifier(
   [
     ENV.fetch("APP_IDENTIFIER", "com.coredan.CoreDanVPN"),
     ENV.fetch("EXTENSION_IDENTIFIER", "com.coredan.CoreDanVPN.PacketTunnel"),
+    ENV.fetch("OPENFLUX_EXTENSION_IDENTIFIER", "com.coredan.CoreDanVPN.OpenFluxTunnel"),
   ]
 )

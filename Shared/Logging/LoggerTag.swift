@@ -17,6 +17,7 @@ extension LoggerTag {
     static let vpn = LoggerTag(rawValue: "VPN")
     static let tunnel = LoggerTag(rawValue: "Tunnel")
     static let libbox = LoggerTag(rawValue: "Libbox")
+    static let openflux = LoggerTag(rawValue: "OpenFlux")
     static let profile = LoggerTag(rawValue: "Profile")
     static let config = LoggerTag(rawValue: "Config")
     static let debug = LoggerTag(rawValue: "Debug")

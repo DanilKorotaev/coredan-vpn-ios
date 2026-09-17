@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/DanilKorotaev/coredan-vpn-ios/actions/workflows/ci.yml/badge.svg)](https://github.com/DanilKorotaev/coredan-vpn-ios/actions/workflows/ci.yml)
 
-Open-source iOS client for **Shadowsocks** profiles with optional plugins (`obfs-local`, `v2ray-plugin`). Import a `ss://` link or enter server fields manually. No server credentials are bundled in the app.
+Open-source iOS client for **Shadowsocks** (`obfs-local`, `v2ray-plugin`) and **OpenFlux VOLGA** (Yandex Docs transport → your exit-node). Import a `ss://` link, enter SS fields, or paste an OpenFlux document URL. No server credentials are bundled in the app.
 
 ## Requirements
 
@@ -17,15 +17,16 @@ Open-source iOS client for **Shadowsocks** profiles with optional plugins (`obfs
 cd coredan-vpn-ios
 cp Config/Secrets.xcconfig.example Config/Secrets.xcconfig
 # Optional: cp Config/Secrets.xcconfig.example → Secrets.xcconfig (team ID is in project.yml)
-brew install go          # once, for Libbox build
+brew install go          # once, for Libbox + OpenFlux builds
 ./scripts/install_libbox.sh
+./scripts/install_openflux.sh
 xcodegen generate
 open CoreDanVPN.xcodeproj
 ```
 
-1. Enable **Packet Tunnel** capability on App ID `com.coredan.CoreDanVPN` and the extension.
+1. Enable **Packet Tunnel** on App IDs `com.coredan.CoreDanVPN`, `…PacketTunnel`, and `…OpenFluxTunnel`.
 2. Run on a **physical device** (VPN extensions are limited on Simulator).
-3. Add a profile (paste `ss://…` or fill fields) → Connect.
+3. Add a profile (`ss://…` or OpenFlux URL) → Connect.
 
 ## Status
 

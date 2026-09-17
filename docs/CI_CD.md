@@ -6,10 +6,10 @@ GitHub Actions + Fastlane (same pattern as [knowledge-base-app-ios](https://gith
 
 | Workflow | Trigger | What it does |
 |----------|---------|----------------|
-| [CI](../.github/workflows/ci.yml) | PR + push to `main` | Build Libbox → XcodeGen → unit tests + coverage gate (≥15%) |
+| [CI](../.github/workflows/ci.yml) | PR + push to `main` | Build Libbox + OpenFlux → XcodeGen → unit tests + coverage gate (≥15%) |
 | [Deploy TestFlight](../.github/workflows/deploy-testflight.yml) | Manual | Match signing → archive → TestFlight |
 
-Libbox is **not** in git; CI caches `ThirdParty/Libbox.xcframework` and builds it on cache miss (~1–3 min).
+Libbox and liboflux are **not** in git; CI caches `ThirdParty/Libbox.xcframework` and `ThirdParty/OpenFlux` and builds on cache miss.
 
 ## Local CI dry-run
 
@@ -28,10 +28,11 @@ SCAN_DEVICE="iPhone 16" bundle exec fastlane test
 
 ## GitHub Secrets (TestFlight)
 
-Create a **private empty repo** for Match (e.g. `coredan-vpn-certificates`). Register both bundle IDs in Apple Developer / App Store Connect:
+Create a **private empty repo** for Match (e.g. `coredan-vpn-certificates`). Register bundle IDs in Apple Developer / App Store Connect:
 
 - `com.coredan.CoreDanVPN` (app)
-- `com.coredan.CoreDanVPN.PacketTunnel` (Packet Tunnel — enable **Network Extensions** / Packet Tunnel)
+- `com.coredan.CoreDanVPN.PacketTunnel` (Shadowsocks / Libbox Packet Tunnel)
+- `com.coredan.CoreDanVPN.OpenFluxTunnel` (OpenFlux Packet Tunnel)
 
 | Secret | Required | Description |
 |--------|----------|-------------|
@@ -44,6 +45,7 @@ Create a **private empty repo** for Match (e.g. `coredan-vpn-certificates`). Reg
 | `ASC_KEY_CONTENT` | Yes | Contents of `.p8` API key file |
 | `APP_IDENTIFIER` | Optional | Default `com.coredan.CoreDanVPN` |
 | `EXTENSION_IDENTIFIER` | Optional | Default `com.coredan.CoreDanVPN.PacketTunnel` |
+| `OPENFLUX_EXTENSION_IDENTIFIER` | Optional | Default `com.coredan.CoreDanVPN.OpenFluxTunnel` |
 | `TELEGRAM_BOT_TOKEN` | Optional | Telegram Bot API token (CI / TestFlight notify) |
 | `TELEGRAM_CHAT_ID` | Optional | Chat id for notifications |
 

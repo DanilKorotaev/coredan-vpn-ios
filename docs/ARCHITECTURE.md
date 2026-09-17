@@ -5,34 +5,42 @@
 | Module | Responsibility |
 |--------|----------------|
 | `CoreDanVPNApp` | SwiftUI, profiles, Keychain, `NETunnelProviderManager` |
-| `CoreDanVPNExtension` | `NEPacketTunnelProvider` + **Libbox** (sing-box) runtime |
-| `Shared` | `ServerProfile`, `SSURLParser`, `SingBoxConfigBuilder`, App Group I/O |
+| `CoreDanVPNExtension` | `NEPacketTunnelProvider` + **Libbox** (sing-box) for Shadowsocks |
+| `CoreDanOpenFluxExtension` | `NEPacketTunnelProvider` + **liboflux** (OpenFlux VOLGA / Yandex Docs) |
+| `Shared` | `ServerProfile`, parsers, App Group I/O, OpenFlux bypass routes |
+
+Libbox and liboflux each embed a **Go runtime**, so they live in **separate** Packet Tunnel extensions. The app starts exactly one manager per connect.
 
 ## Data flow
 
+### Shadowsocks
+
 ```text
-User pastes ss:// or manual fields
-        → ServerProfile
-        → SingBoxConfigBuilder → JSON
-        → App Group (active-profile.json, sing-box.json)
-        → VPNController.startVPNTunnel()
-        → PacketTunnelProvider reads JSON → Libbox
+ss:// or manual fields → ServerProfile (kind=shadowsocks)
+  → SingBoxConfigBuilder → JSON
+  → App Group + VPNController → CoreDanVPNExtension → Libbox
 ```
 
-## Libbox integration
+### OpenFlux (VOLGA)
 
-1. Build `ThirdParty/Libbox.xcframework` via `./scripts/install_libbox.sh` (from [sing-box](https://github.com/SagerNet/sing-box) `make lib_apple`).
-2. App writes `sing-box.json` to App Group; `VPNController` also passes `configContent` in `startVPNTunnel(options:)`.
-3. `PacketTunnelProvider` → `LibboxTunnelService` → `LibboxCommandServer` + `LibboxPlatformInterface` (TUN fd from `NEPacketTunnelProvider`).
+```text
+Document URL → ServerProfile (kind=openflux, transport=vyandex, codec=legacy)
+  → VPNController providerConfiguration
+  → CoreDanOpenFluxExtension → OpenFluxStartPacketTunnel
+  → Yandex VOLGA ↔ exit-node on VPS
+```
 
-**Next validation:** obfs profile on device (Wi‑Fi + Tele2). If `obfs-local` fails, try v2ray profile or server-side ShadowTLS.
+## Disconnect / Control Center
+
+`VPNController.disconnect()` clears **On Demand**, sets `isEnabled = false`, stops the tunnel, and saves preferences for **both** extensions so toggling VPN off in Control Center does not bounce it back on.
+
+## Dependencies
+
+- Apple: NetworkExtension, Security
+- Libbox / sing-box (GPL) — `scripts/install_libbox.sh`
+- OpenFlux liboflux (GPL-3.0) — `scripts/install_openflux.sh` (patches `vyandex` into packet-tunnel export)
 
 ## Security
 
 - No server hosts/passwords in repository.
 - Profiles only on device (Keychain + App Group).
-
-## Dependencies
-
-- Apple: NetworkExtension, Security
-- Planned: Libbox (GPL — comply in README/LICENSE)

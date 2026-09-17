@@ -10,7 +10,7 @@ struct ProfilesView: View {
                     ContentUnavailableView(
                         "Нет профилей",
                         systemImage: "network",
-                        description: Text("Добавьте ss:// ссылку или заполните поля вручную.")
+                        description: Text("Добавьте ss:// или профиль OpenFlux (VOLGA).")
                     )
                 } else {
                     List {
@@ -85,15 +85,23 @@ private struct ProfileRow: View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
                 Text(profile.name).font(.headline)
+                if profile.kind == .openflux {
+                    Text("OpenFlux")
+                        .font(.caption2)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color.secondary.opacity(0.15))
+                        .clipShape(Capsule())
+                }
                 if isSelected {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundStyle(.tint)
                 }
             }
-            Text("\(profile.host):\(profile.port) · \(profile.method)")
+            Text(profile.subtitle)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
-            if let plugin = profile.plugin {
+            if profile.kind == .shadowsocks, let plugin = profile.plugin {
                 Text(plugin.pluginName)
                     .font(.caption)
                     .foregroundStyle(.secondary)

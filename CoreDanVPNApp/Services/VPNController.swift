@@ -16,66 +16,91 @@ protocol VPNControllerProtocol: Sendable {
     func lastTunnelError() async -> String?
 }
 
-/// Manages `NETunnelProviderManager` for the packet tunnel extension.
+/// Manages `NETunnelProviderManager` for Libbox and OpenFlux packet tunnel extensions.
 final class VPNController: VPNControllerProtocol, @unchecked Sendable {
     private let log = makeLogger(tag: .vpn)
     private let sharedStore: SharedProfileStoreProtocol
-    private let bundleIdentifier: String
 
-    init(
-        sharedStore: SharedProfileStoreProtocol = SharedProfileStore(),
-        bundleIdentifier: String = AppConstants.tunnelProviderBundleIdentifier
-    ) {
+    init(sharedStore: SharedProfileStoreProtocol = SharedProfileStore()) {
         self.sharedStore = sharedStore
-        self.bundleIdentifier = bundleIdentifier
     }
 
     func status() async -> VPNStatus {
         do {
             let managers = try await NETunnelProviderManager.loadAllFromPreferences()
-            guard let manager = managers.first(where: { tunnelBundleID($0) == bundleIdentifier }),
-                  let connection = manager.connection as? NETunnelProviderSession else {
-                return .disconnected
+            let ours = managers.filter { isOurTunnel($0) }
+            if ours.isEmpty { return .disconnected }
+
+            // Prefer any connected / in-flight session.
+            var sawConnecting = false
+            var sawDisconnecting = false
+            for manager in ours {
+                guard let connection = manager.connection as? NETunnelProviderSession else { continue }
+                switch connection.status {
+                case .connected:
+                    return .connected
+                case .connecting, .reasserting:
+                    sawConnecting = true
+                case .disconnecting:
+                    sawDisconnecting = true
+                case .invalid:
+                    return .error("Invalid tunnel session")
+                case .disconnected:
+                    break
+                @unknown default:
+                    break
+                }
             }
-            switch connection.status {
-            case .connected: return .connected
-            case .connecting, .reasserting: return .connecting
-            case .disconnecting: return .disconnecting
-            case .disconnected: return .disconnected
-            case .invalid: return .error("Invalid tunnel session")
-            @unknown default: return .disconnected
-            }
+            if sawConnecting { return .connecting }
+            if sawDisconnecting { return .disconnecting }
+            return .disconnected
         } catch {
             return .error(error.localizedDescription)
         }
     }
 
     func connect(profile: ServerProfile, singBoxJSON: String) async throws {
-        log.releaseInfo("Connect \(profile.name) \(profile.host):\(profile.port)")
-        try sharedStore.writeActiveProfile(profile, singBoxJSON: singBoxJSON)
-
-        let manager = try await loadOrCreateManager()
-        manager.isEnabled = true
-        let proto = manager.protocolConfiguration as? NETunnelProviderProtocol ?? NETunnelProviderProtocol()
-        proto.providerBundleIdentifier = bundleIdentifier
-        proto.serverAddress = profile.host
-        proto.providerConfiguration = ["profileName": profile.name]
-        if #available(iOS 16.4, *) {
-            proto.includeAllNetworks = true
-            proto.enforceRoutes = true
+        switch profile.kind {
+        case .shadowsocks:
+            log.releaseInfo("Connect SS \(profile.name) \(profile.host):\(profile.port)")
+            try sharedStore.writeActiveProfile(profile, singBoxJSON: singBoxJSON)
+            try await startTunnel(
+                bundleIdentifier: AppConstants.tunnelProviderBundleIdentifier,
+                profile: profile,
+                providerConfiguration: ["profileName": profile.name, "kind": "shadowsocks"],
+                startOptions: [
+                    "configContent": singBoxJSON as NSString,
+                    "manualStart": NSNumber(value: true),
+                ]
+            )
+        case .openflux:
+            let url = profile.openfluxURL?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            guard !url.isEmpty else {
+                throw VPNControllerError.tunnelFailed("Нет URL документа OpenFlux")
+            }
+            let transport = profile.openfluxTransport ?? "vyandex"
+            log.releaseInfo("Connect OpenFlux \(profile.name) transport=\(transport)")
+            try sharedStore.writeActiveProfile(profile, singBoxJSON: "")
+            var conf: [String: Any] = [
+                "profileName": profile.name,
+                "kind": "openflux",
+                "transport": transport,
+                "url": url,
+                "codec": profile.openfluxCodec ?? "legacy",
+                "maxToken": "",
+                "maxUid": "",
+                "debug": profile.openfluxVerbose == true,
+            ]
+            try await startTunnel(
+                bundleIdentifier: AppConstants.openFluxTunnelProviderBundleIdentifier,
+                profile: profile,
+                providerConfiguration: conf,
+                startOptions: [
+                    "manualStart": NSNumber(value: true),
+                    "kind": "openflux" as NSString,
+                ]
+            )
         }
-        manager.protocolConfiguration = proto
-        manager.localizedDescription = profile.name
-        try await manager.saveToPreferences()
-        try await manager.loadFromPreferences()
-        let startOptions: [String: NSObject] = [
-            "configContent": singBoxJSON as NSString,
-            "manualStart": NSNumber(value: true),
-        ]
-        try manager.connection.startVPNTunnel(options: startOptions)
-
-        try await waitForTunnelSession(manager: manager, timeoutSeconds: 12)
-        log.releaseInfo("Tunnel status: \(manager.connection.status.rawValue)")
     }
 
     func lastTunnelError() async -> String? {
@@ -86,21 +111,81 @@ final class VPNController: VPNControllerProtocol, @unchecked Sendable {
         return await fetchDisconnectError()
     }
 
+    /// Stops every CoreDan tunnel and disables On Demand so Control Center
+    /// disconnect cannot bounce the VPN back on.
     func disconnect() async throws {
         let managers = try await NETunnelProviderManager.loadAllFromPreferences()
-        guard let manager = managers.first(where: { tunnelBundleID($0) == bundleIdentifier }) else {
-            return
+        for manager in managers where isOurTunnel(manager) {
+            await hardenDisabled(manager)
+            manager.connection.stopVPNTunnel()
+            try await manager.saveToPreferences()
         }
-        manager.connection.stopVPNTunnel()
+        log.releaseInfo("Disconnected all CoreDan tunnels")
     }
 
-    private func loadOrCreateManager() async throws -> NETunnelProviderManager {
+    // MARK: - Private
+
+    private func startTunnel(
+        bundleIdentifier: String,
+        profile: ServerProfile,
+        providerConfiguration: [String: Any],
+        startOptions: [String: NSObject]
+    ) async throws {
+        try await disableOtherTunnels(except: bundleIdentifier)
+
+        let manager = try await loadOrCreateManager(bundleIdentifier: bundleIdentifier)
+        await hardenDisabled(manager) // clear any leftover On Demand before enabling
+        manager.isEnabled = true
+        manager.isOnDemandEnabled = false
+        manager.onDemandRules = []
+
+        let proto = manager.protocolConfiguration as? NETunnelProviderProtocol ?? NETunnelProviderProtocol()
+        proto.providerBundleIdentifier = bundleIdentifier
+        proto.serverAddress = profile.kind == .openflux ? "OpenFlux" : profile.host
+        proto.providerConfiguration = providerConfiguration
+        if #available(iOS 16.4, *) {
+            // Keep false for OpenFlux so Control Center disconnect is reliable;
+            // SS still captures full traffic via sing-box TUN.
+            proto.includeAllNetworks = profile.kind == .shadowsocks
+            proto.enforceRoutes = profile.kind == .shadowsocks
+        }
+        manager.protocolConfiguration = proto
+        manager.localizedDescription = profile.name
+        try await manager.saveToPreferences()
+        try await manager.loadFromPreferences()
+        try manager.connection.startVPNTunnel(options: startOptions)
+
+        try await waitForTunnelSession(manager: manager, timeoutSeconds: 20)
+        log.releaseInfo("Tunnel status: \(manager.connection.status.rawValue)")
+    }
+
+    private func disableOtherTunnels(except bundleIdentifier: String) async throws {
+        let managers = try await NETunnelProviderManager.loadAllFromPreferences()
+        for manager in managers where isOurTunnel(manager) {
+            guard tunnelBundleID(manager) != bundleIdentifier else { continue }
+            await hardenDisabled(manager)
+            manager.connection.stopVPNTunnel()
+            try await manager.saveToPreferences()
+        }
+    }
+
+    private func hardenDisabled(_ manager: NETunnelProviderManager) async {
+        manager.isOnDemandEnabled = false
+        manager.onDemandRules = []
+        manager.isEnabled = false
+    }
+
+    private func loadOrCreateManager(bundleIdentifier: String) async throws -> NETunnelProviderManager {
         let managers = try await NETunnelProviderManager.loadAllFromPreferences()
         if let existing = managers.first(where: { tunnelBundleID($0) == bundleIdentifier }) {
             return existing
         }
-        let manager = NETunnelProviderManager()
-        return manager
+        return NETunnelProviderManager()
+    }
+
+    private func isOurTunnel(_ manager: NETunnelProviderManager) -> Bool {
+        guard let id = tunnelBundleID(manager) else { return false }
+        return AppConstants.allTunnelProviderBundleIdentifiers.contains(id)
     }
 
     private func tunnelBundleID(_ manager: NETunnelProviderManager) -> String? {
@@ -115,7 +200,6 @@ final class VPNController: VPNControllerProtocol, @unchecked Sendable {
             case .connected:
                 return
             case .disconnected, .invalid:
-                // Ignore a brief initial disconnected state right after startVPNTunnel().
                 if Date().timeIntervalSince(startedAt) > 2 {
                     if let message = await lastTunnelError() {
                         throw VPNControllerError.tunnelFailed(message)
@@ -136,15 +220,15 @@ final class VPNController: VPNControllerProtocol, @unchecked Sendable {
 
     private func fetchDisconnectError() async -> String? {
         let managers = try? await NETunnelProviderManager.loadAllFromPreferences()
-        guard let manager = managers?.first(where: { tunnelBundleID($0) == bundleIdentifier }),
-              let session = manager.connection as? NETunnelProviderSession else {
-            return nil
-        }
-        if #available(iOS 16.0, *) {
-            do {
-                try await session.fetchLastDisconnectError()
-            } catch {
-                return error.localizedDescription
+        let ours = managers?.filter { isOurTunnel($0) } ?? []
+        for manager in ours {
+            guard let session = manager.connection as? NETunnelProviderSession else { continue }
+            if #available(iOS 16.0, *) {
+                do {
+                    try await session.fetchLastDisconnectError()
+                } catch {
+                    return error.localizedDescription
+                }
             }
         }
         return nil

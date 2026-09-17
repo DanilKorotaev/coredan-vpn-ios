@@ -8,18 +8,18 @@ cp Config/Secrets.xcconfig.example Config/Secrets.xcconfig
 
 Signing uses **Team ID `66C9VGAZR5`** (CoreDan Apple account) from `project.yml`, same as Knowledge Base App. Use `Secrets.xcconfig` only for local overrides; CI can set `DEVELOPMENT_TEAM` via the `TEAM_ID` secret when deploying TestFlight.
 
-## 2. Libbox (sing-box runtime)
-
-The tunnel extension links **Libbox.xcframework** (not in git — GPL, ~100 MB). Build once:
+## 2. Libbox + OpenFlux
 
 ```bash
 brew install go   # if needed
 ./scripts/install_libbox.sh
+./scripts/install_openflux.sh
 ```
 
-This clones [sing-box](https://github.com/SagerNet/sing-box) at `v1.13.12` and builds an **extension-safe** `Libbox.xcframework` (minimal tags, no Tailscale — Tailscale pulls `UIApplication`, which Network Extensions cannot link). Output: `ThirdParty/Libbox.xcframework`.
+- Libbox → `ThirdParty/Libbox.xcframework` (Shadowsocks; no Tailscale).
+- OpenFlux → `ThirdParty/OpenFlux/` (`liboflux.a` + header; VOLGA/`vyandex` patched).
 
-Rebuild after script changes: `FORCE_LIBBOX_REBUILD=1 ./scripts/install_libbox.sh`
+Neither binary is committed. Rebuild: `FORCE_LIBBOX_REBUILD=1` / `FORCE_OPENFLUX_REBUILD=1`.
 
 ## 3. Xcode project
 
@@ -34,7 +34,8 @@ open CoreDanVPN.xcodeproj
    - **Network Extensions** → Packet Tunnel
    - **App Groups** → `group.com.coredan.CoreDanVPN`
 2. Register App ID `com.coredan.CoreDanVPN.PacketTunnel` with the same capabilities.
-3. Provisioning profiles for **app** and **extension** (automatic signing is enough for dev).
+3. Register App ID `com.coredan.CoreDanVPN.OpenFluxTunnel` with the same capabilities (second Packet Tunnel for OpenFlux).
+4. Provisioning profiles for **app** and **both extensions** (automatic signing is enough for dev).
 
 ## 5. Run
 

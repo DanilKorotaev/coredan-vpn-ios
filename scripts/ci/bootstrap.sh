@@ -22,5 +22,12 @@ else
   echo "Libbox.xcframework present"
 fi
 
+if [[ ! -f ThirdParty/OpenFlux/device/liboflux.a ]]; then
+  echo "Building OpenFlux liboflux…"
+  ./scripts/install_openflux.sh
+else
+  echo "OpenFlux liboflux present"
+fi
+
 xcodegen generate
 echo "Bootstrap done."

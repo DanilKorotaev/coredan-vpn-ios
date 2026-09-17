@@ -1,0 +1,6 @@
+// OpenFlux static library paths (device vs simulator).
+HEADER_SEARCH_PATHS = $(inherited) $(SRCROOT)/ThirdParty/OpenFlux/include
+LIBRARY_SEARCH_PATHS[sdk=iphoneos*] = $(inherited) $(SRCROOT)/ThirdParty/OpenFlux/device
+LIBRARY_SEARCH_PATHS[sdk=iphonesimulator*] = $(inherited) $(SRCROOT)/ThirdParty/OpenFlux/simulator
+OTHER_LDFLAGS = $(inherited) -loflux -lresolv
+SWIFT_OBJC_BRIDGING_HEADER = CoreDanOpenFluxExtension/OpenFlux/OpenFlux-Bridging-Header.h

@@ -20,5 +20,11 @@ fastlane/build_logs/
 # Libbox (build locally — GPL, large binary)
 ThirdParty/Libbox.xcframework/
 
+# OpenFlux liboflux (build via scripts/install_openflux.sh)
+ThirdParty/OpenFlux/device/
+ThirdParty/OpenFlux/simulator/
+ThirdParty/OpenFlux/include/
+ThirdParty/OpenFlux/VERSION.txt
+
 # macOS
 .DS_Store

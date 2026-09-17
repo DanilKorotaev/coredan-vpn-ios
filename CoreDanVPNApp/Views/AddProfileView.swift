@@ -17,6 +17,10 @@ struct AddProfileView: View {
     @State private var v2rayPath = "/vpn"
     @State private var v2rayTLS = true
 
+    @State private var openfluxName = ""
+    @State private var openfluxURL = ""
+    @State private var openfluxVerbose = false
+
     let onSave: (ServerProfile) -> Void
 
     private let parser = SSURLParser()
@@ -27,6 +31,7 @@ struct AddProfileView: View {
                 Picker("Способ", selection: $mode) {
                     Text("Ссылка ss://").tag(AddMode.importLink)
                     Text("Вручную").tag(AddMode.manual)
+                    Text("OpenFlux").tag(AddMode.openflux)
                 }
                 .pickerStyle(.segmented)
 
@@ -71,6 +76,23 @@ struct AddProfileView: View {
                             Toggle("TLS", isOn: $v2rayTLS)
                         }
                     }
+                case .openflux:
+                    Section("OpenFlux · VOLGA") {
+                        TextField("Название", text: $openfluxName)
+                        TextField("URL документа", text: $openfluxURL, axis: .vertical)
+                            .lineLimit(2...5)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                        Button("Вставить из буфера") {
+                            openfluxURL = UIPasteboard.general.string ?? ""
+                        }
+                        Toggle("Подробный лог (в файлы приложения)", isOn: $openfluxVerbose)
+                    }
+                    Section {
+                        Text("Транспорт VOLGA (vyandex) и codec legacy — как в рабочем пилоте. Exit-node должен быть поднят на том же документе.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
             .scrollContentBackground(.visible)
@@ -93,6 +115,8 @@ struct AddProfileView: View {
         case .importLink: !linkText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         case .manual:
             !host.isEmpty && Int(port) != nil && !method.isEmpty && !password.isEmpty
+        case .openflux:
+            !openfluxURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         }
     }
 
@@ -112,11 +136,18 @@ struct AddProfileView: View {
                     password: password,
                     plugin: buildPlugin()
                 )
+            case .openflux:
+                let url = openfluxURL.trimmingCharacters(in: .whitespacesAndNewlines)
+                let displayName = openfluxName.trimmingCharacters(in: .whitespacesAndNewlines)
+                profile = .openflux(
+                    name: displayName.isEmpty ? "OpenFlux VOLGA" : displayName,
+                    documentURL: url,
+                    verbose: openfluxVerbose
+                )
             }
             onSave(profile)
             dismiss()
         } catch {
-            // Simple alert via notification — parent handles errors on connect; here use name field flash
             name = "Ошибка: \(error.localizedDescription)"
         }
     }
@@ -133,6 +164,7 @@ struct AddProfileView: View {
 private enum AddMode {
     case importLink
     case manual
+    case openflux
 }
 
 private enum PluginKind: CaseIterable {
