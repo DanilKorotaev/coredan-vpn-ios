@@ -7,6 +7,7 @@ main→TestFlight ship (commit lands after upload).
 
 | Version | Build (CI) | Git tag | Date | Notes |
 |---------|------------|---------|------|-------|
+| 1.1.6 | 18 | `ios/v1.1.6` | 2026-09-18 | Survive Telegram load without soft-cap thrash. |
 | 1.1.5 | 17 | `ios/v1.1.5` | 2026-09-18 | TestFlight release |
 | 1.1.4 | 16 | `ios/v1.1.4` | 2026-09-18 | Stop starving the tunnel — remove soft memory caps. |
 | 1.1.3 | 15 | `ios/v1.1.3` | 2026-09-18 | Shrink Volga 16MiB buffers that jetsam the NE. |
