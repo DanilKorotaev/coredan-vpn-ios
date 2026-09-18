@@ -12,6 +12,12 @@ On each successful **main → TestFlight** deploy, CI auto-bumps **PATCH** (unle
 
 ## [Unreleased]
 
+## [1.1.4] - 2026-09-18
+
+### Fixed
+
+- Stop starving the tunnel — remove soft memory caps.
+
 ## [1.1.3] - 2026-09-18
 
 ### Fixed
@@ -56,7 +62,8 @@ On each successful **main → TestFlight** deploy, CI auto-bumps **PATCH** (unle
 - OpenFlux VOLGA jetsam in the packet tunnel
 - OpenFlux iOS build script under bash `set -u`
 
-[Unreleased]: https://github.com/DanilKorotaev/coredan-vpn-ios/compare/ios/v1.1.3...HEAD
+[Unreleased]: https://github.com/DanilKorotaev/coredan-vpn-ios/compare/ios/v1.1.4...HEAD
+[1.1.4]: https://github.com/DanilKorotaev/coredan-vpn-ios/releases/tag/ios/v1.1.4
 [1.1.3]: https://github.com/DanilKorotaev/coredan-vpn-ios/releases/tag/ios/v1.1.3
 [1.1.2]: https://github.com/DanilKorotaev/coredan-vpn-ios/releases/tag/ios/v1.1.2
 [1.1.1]: https://github.com/DanilKorotaev/coredan-vpn-ios/releases/tag/ios/v1.1.1
