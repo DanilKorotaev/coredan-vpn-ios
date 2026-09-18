@@ -1,5 +1,6 @@
 import NetworkExtension
 
+/// System VPN entry — aligned with upstream OpenFlux `ios-app/OpenFluxTunnel/PacketTunnelProvider.swift`.
 final class PacketTunnelProvider: NEPacketTunnelProvider {
     private let log = makeLogger(tag: .tunnel)
     private let sharedStore = SharedProfileStore()

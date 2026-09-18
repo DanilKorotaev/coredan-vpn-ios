@@ -92,6 +92,9 @@ targets:
       path: CoreDanOpenFluxExtension/Info.plist
       properties:
         CFBundleDisplayName: CoreDan OpenFlux
+        # Match upstream ios-app OpenFlux Info.plist — Volga/Yandex HTTPS + WS.
+        NSAppTransportSecurity:
+          NSAllowsArbitraryLoads: true
         NSExtension:
           NSExtensionPointIdentifier: com.apple.networkextension.packet-tunnel
           NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).PacketTunnelProvider

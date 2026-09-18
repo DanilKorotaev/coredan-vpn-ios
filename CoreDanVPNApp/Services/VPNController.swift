@@ -71,7 +71,8 @@ final class VPNController: VPNControllerProtocol, @unchecked Sendable {
                 startOptions: [
                     "configContent": singBoxJSON as NSString,
                     "manualStart": NSNumber(value: true),
-                ]
+                ],
+                waitForConnectedSeconds: 20
             )
         case .openflux:
             let url = profile.openfluxURL?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
@@ -81,6 +82,8 @@ final class VPNController: VPNControllerProtocol, @unchecked Sendable {
             let transport = profile.openfluxTransport ?? "vyandex"
             log.releaseInfo("Connect OpenFlux \(profile.name) transport=\(transport)")
             try sharedStore.writeActiveProfile(profile, singBoxJSON: "")
+            // Match upstream ios-app VPNController: only transport/url/creds in
+            // providerConfiguration, startVPNTunnel() with no options, no long wait.
             var conf: [String: Any] = [
                 "profileName": profile.name,
                 "kind": "openflux",
@@ -95,10 +98,8 @@ final class VPNController: VPNControllerProtocol, @unchecked Sendable {
                 bundleIdentifier: AppConstants.openFluxTunnelProviderBundleIdentifier,
                 profile: profile,
                 providerConfiguration: conf,
-                startOptions: [
-                    "manualStart": NSNumber(value: true),
-                    "kind": "openflux" as NSString,
-                ]
+                startOptions: nil,
+                waitForConnectedSeconds: 8
             )
         }
     }
@@ -129,7 +130,8 @@ final class VPNController: VPNControllerProtocol, @unchecked Sendable {
         bundleIdentifier: String,
         profile: ServerProfile,
         providerConfiguration: [String: Any],
-        startOptions: [String: NSObject]
+        startOptions: [String: NSObject]?,
+        waitForConnectedSeconds: Int
     ) async throws {
         try await disableOtherTunnels(except: bundleIdentifier)
 
@@ -144,9 +146,7 @@ final class VPNController: VPNControllerProtocol, @unchecked Sendable {
         proto.serverAddress = profile.kind == .openflux ? "OpenFlux" : profile.host
         proto.providerConfiguration = providerConfiguration
         if #available(iOS 16.4, *) {
-            // OpenFlux must NOT use includeAllNetworks: it can suck Volga/Yandex
-            // control traffic into the tunnel, crash the extension, and iOS will
-            // reassert → VPN badge flaps. Upstream OpenFlux leaves these false.
+            // Upstream OpenFlux ios-app never sets these (stay false).
             // Shadowsocks/Libbox still needs full capture.
             let fullCapture = profile.kind == .shadowsocks
             proto.includeAllNetworks = fullCapture
@@ -156,9 +156,15 @@ final class VPNController: VPNControllerProtocol, @unchecked Sendable {
         manager.localizedDescription = profile.name
         try await manager.saveToPreferences()
         try await manager.loadFromPreferences()
-        try manager.connection.startVPNTunnel(options: startOptions)
 
-        try await waitForTunnelSession(manager: manager, timeoutSeconds: 20)
+        // Upstream: startVPNTunnel() with no options.
+        if let startOptions {
+            try manager.connection.startVPNTunnel(options: startOptions)
+        } else {
+            try manager.connection.startVPNTunnel()
+        }
+
+        try await waitForTunnelSession(manager: manager, timeoutSeconds: waitForConnectedSeconds)
         log.releaseInfo("Tunnel status: \(manager.connection.status.rawValue)")
     }
 
