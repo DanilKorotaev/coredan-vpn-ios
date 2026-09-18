@@ -161,38 +161,30 @@ else:
     print("Receive empty-drop already present")
 packet.write_text(text)
 
-# 2) Default VolgaConfig is sized for VPS exit (2000 workers / 1M queue) and
-# jetsams NEPacketTunnelProvider (~50MB). Moderate shrink for iOS client
-# (too aggressive: 8/256 froze the phone via GC thrash + stalled Volga).
+# 2) Volga defaults are for a VPS exit (2000 workers, 16MiB b64 buffers) and
+# instantly jetsam NEPacketTunnelProvider (~50MB). That matches our logs:
+# start OK → written=1 → process dies with no stopTunnel.
 vtext = volga.read_text()
-vtext2, n = re.subn(
-    r"WorkerCount:\s*2000,",
-    "WorkerCount: 24, // iOS NE: was 2000",
-    vtext,
-    count=1,
-)
-vtext2, n2 = re.subn(
-    r"QueueSize:\s*1000000,",
-    "QueueSize: 1024, // iOS NE: was 1000000",
-    vtext2,
-    count=1,
-)
-vtext2, n3 = re.subn(
-    r"MaxIdleConnsPerHost:\s*2000,",
-    "MaxIdleConnsPerHost: 16,",
-    vtext2,
-    count=1,
-)
-vtext2, n4 = re.subn(
-    r"MaxIdleConns:\s*4000,",
-    "MaxIdleConns: 32,",
-    vtext2,
-    count=1,
-)
-if n + n2 + n3 + n4 == 0:
-    raise SystemExit("vyandex.go: could not patch DefaultVolgaConfig for iOS memory")
-volga.write_text(vtext2)
-print(f"Patched DefaultVolgaConfig (workers/queue/idle conns: {n},{n2},{n3},{n4})")
+replacements = [
+    (r"WorkerCount:\s*2000,", "WorkerCount: 24, // iOS NE: was 2000"),
+    (r"QueueSize:\s*1000000,", "QueueSize: 1024, // iOS NE: was 1000000"),
+    (r"MaxIdleConnsPerHost:\s*2000,", "MaxIdleConnsPerHost: 16,"),
+    (r"MaxIdleConns:\s*4000,", "MaxIdleConns: 32,"),
+    (r"BatchMaxBytes:\s*4 \* 1024 \* 1024,", "BatchMaxBytes: 256 * 1024, // iOS NE: was 4MiB"),
+    (r"MaxPayloadBytes:\s*5_000_000,", "MaxPayloadBytes: 512_000, // iOS NE: was 5_000_000"),
+    (
+        r'New: func\(\) interface\{\} \{ return make\(\[\]byte, 0, 16\*1024\*1024\) \},',
+        'New: func() interface{} { return make([]byte, 0, 64*1024) }, // iOS NE: was 16MiB (jetsam)',
+    ),
+]
+counts = []
+for pat, rep in replacements:
+    vtext, n = re.subn(pat, rep, vtext, count=1)
+    counts.append(n)
+if sum(counts) < 5:
+    raise SystemExit(f"vyandex.go: iOS memory patches incomplete: {counts}")
+volga.write_text(vtext)
+print(f"Patched Volga for iOS NE memory ({counts})")
 PY
 
 build_slice() {
