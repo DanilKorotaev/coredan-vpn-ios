@@ -4,7 +4,9 @@ import Foundation
 enum TunnelPaths {
     static var sharedDirectory: URL {
         guard let url = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: AppConstants.appGroupIdentifier) else {
-            fatalError("App Group unavailable: \(AppConstants.appGroupIdentifier)")
+            // Never fatalError in production — it surfaces as “Share with Developer”.
+            return FileManager.default.temporaryDirectory
+                .appendingPathComponent("CoreDanVPN-MissingAppGroup", isDirectory: true)
         }
         return url
     }

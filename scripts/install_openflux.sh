@@ -117,22 +117,42 @@ if 'keepalives / empty frames' not in text:
 else:
     print("TunReadPacket already patched")
 
-# 1c) Leave upstream soft MemoryLimit (40MiB) + GCPercent(20).
-# Do NOT tighten further — GCPercent(10)/35MiB caused whole-device freezes.
-
-# 1d) Cap concurrent DoT resolutions slightly (upstream 16).
-text2, ndns = re.subn(
-    r"var dnsSem = make\(chan struct\{\}, 16\)",
-    "var dnsSem = make(chan struct{}, 8) // iOS NE: was 16",
+# 1c) REMOVE soft memory cap. Upstream SetMemoryLimit(40MiB) + our tighter
+# caps caused GC thrash (phone freezes) and still jetsammed under Volga.
+# Let the process use memory normally; iOS hard jetsam remains the ceiling.
+text2, nmem = re.subn(
+    r"\t// Keep the extension well under the NE memory cap\.\n\tdebug\.SetMemoryLimit\(40 << 20\)\n\tdebug\.SetGCPercent\(20\)\n\n",
+    "\t// iOS CoreDan: do NOT SetMemoryLimit — soft caps thrash GC / freeze the phone.\n\n",
     text,
     count=1,
 )
-if ndns == 0:
-    raise SystemExit("export_ios_packet.go: dnsSem patch failed")
+if nmem == 0:
+    # Fallback if comment text drifts
+    text2, nmem = re.subn(
+        r"\tdebug\.SetMemoryLimit\(40 << 20\)\n\tdebug\.SetGCPercent\(20\)\n",
+        "\t// iOS CoreDan: SetMemoryLimit removed (GC thrash).\n",
+        text,
+        count=1,
+    )
+if nmem == 0:
+    raise SystemExit("export_ios_packet.go: could not remove SetMemoryLimit")
 text = text2
-print(f"Patched dnsSem ({ndns})")
+print(f"Removed SetMemoryLimit/GCPercent ({nmem})")
 
-# 1e) Drop empty frames before they hit the TUN read queue.
+# Drop unused debug import if it becomes unused — keep import; Go compiler
+# will fail if debug is unused. Re-add a harmless reference or remove import.
+if "debug." not in text.split("func OpenFluxStartPacketTunnel")[1].split("//export OpenFluxTunWritePacket")[0]:
+    text2, nimp = re.subn(
+        r"\t\"runtime/debug\"\n",
+        "",
+        text,
+        count=1,
+    )
+    if nimp:
+        text = text2
+        print("Removed unused runtime/debug import")
+
+# 1d) Drop empty frames before they hit the TUN read queue.
 old_recv = '''\toutQ := make(chan []byte, 1024)
 \t// Packets coming back from the exit node -> queue for the device.
 \tt.Receive(func(data []byte) {
@@ -161,30 +181,30 @@ else:
     print("Receive empty-drop already present")
 packet.write_text(text)
 
-# 2) Volga defaults are for a VPS exit (2000 workers, 16MiB b64 buffers) and
-# instantly jetsam NEPacketTunnelProvider (~50MB). That matches our logs:
-# start OK → written=1 → process dies with no stopTunnel.
+# 2) Fix NE footguns only:
+# - b64BufPool 16MiB pre-alloc (instant pressure)
+# - QueueSize 1e6 empty channel slots
+# - WorkerCount 2000 (VPS exit default — freezes a phone on Start; 64 is enough)
+# Do NOT SetMemoryLimit / starve batch sizes.
 vtext = volga.read_text()
 replacements = [
-    (r"WorkerCount:\s*2000,", "WorkerCount: 24, // iOS NE: was 2000"),
-    (r"QueueSize:\s*1000000,", "QueueSize: 1024, // iOS NE: was 1000000"),
-    (r"MaxIdleConnsPerHost:\s*2000,", "MaxIdleConnsPerHost: 16,"),
-    (r"MaxIdleConns:\s*4000,", "MaxIdleConns: 32,"),
-    (r"BatchMaxBytes:\s*4 \* 1024 \* 1024,", "BatchMaxBytes: 256 * 1024, // iOS NE: was 4MiB"),
-    (r"MaxPayloadBytes:\s*5_000_000,", "MaxPayloadBytes: 512_000, // iOS NE: was 5_000_000"),
     (
-        r'New: func\(\) interface\{\} \{ return make\(\[\]byte, 0, 16\*1024\*1024\) \},',
-        'New: func() interface{} { return make([]byte, 0, 64*1024) }, // iOS NE: was 16MiB (jetsam)',
+        r"New: func\(\) interface\{\} \{ return make\(\[\]byte, 0, 16\*1024\*1024\) \},",
+        "New: func() interface{} { return make([]byte, 0, 256*1024) }, // iOS NE: was 16MiB footgun",
     ),
+    (r"WorkerCount:\s*2000,", "WorkerCount: 64, // iOS NE: VPS default 2000 freezes Start()"),
+    (r"QueueSize:\s*1000000,", "QueueSize: 8192, // iOS NE: channel slots (was 1000000)"),
+    (r"MaxIdleConnsPerHost:\s*2000,", "MaxIdleConnsPerHost: 64,"),
+    (r"MaxIdleConns:\s*4000,", "MaxIdleConns: 128,"),
 ]
 counts = []
 for pat, rep in replacements:
     vtext, n = re.subn(pat, rep, vtext, count=1)
     counts.append(n)
-if sum(counts) < 5:
-    raise SystemExit(f"vyandex.go: iOS memory patches incomplete: {counts}")
+if counts[0] == 0 or counts[1] == 0:
+    raise SystemExit(f"vyandex.go: critical NE patches failed: {counts}")
 volga.write_text(vtext)
-print(f"Patched Volga for iOS NE memory ({counts})")
+print(f"Patched Volga NE footguns {counts}")
 PY
 
 build_slice() {

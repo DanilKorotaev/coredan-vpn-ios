@@ -2,12 +2,12 @@ import Foundation
 import NetworkExtension
 
 /// Bridges NEPacketTunnelProvider packet flow to liboflux (OpenFluxStartPacketTunnel).
+/// Keep this close to upstream OpenFlux `PacketTunnelProvider` — extra timers /
+/// debug spam have caused device-wide jank.
 final class OpenFluxTunnelService {
     private let log = makeLogger(tag: .openflux)
-    /// Strong retain while the tunnel is up — matches upstream OpenFlux write loop.
     private var tunnel: NEPacketTunnelProvider?
     private var writeLoopRunning = false
-    private var heartbeat: DispatchSourceTimer?
 
     init(tunnel: NEPacketTunnelProvider) {
         self.tunnel = tunnel
@@ -18,8 +18,9 @@ final class OpenFluxTunnelService {
             throw OpenFluxTunnelError.tunnelDeallocated
         }
 
-        // Always on for NE start path — file log may not flush if Go jetsams the process.
-        OpenFluxSetDebug(1)
+        if verbose {
+            OpenFluxSetDebug(1)
+        }
         log.releaseInfo("OpenFlux NE settings (transport=\(transport))")
 
         let settings = NEPacketTunnelNetworkSettings(tunnelRemoteAddress: "127.0.0.1")
@@ -35,49 +36,38 @@ final class OpenFluxTunnelService {
         try await tunnel.setTunnelNetworkSettings(settings)
         log.releaseInfo("OpenFlux NE settings applied, calling liboflux…")
 
-        let rc = transport.withCString { tt in
-            url.withCString { u in
-                maxToken.withCString { tok in
-                    maxUid.withCString { uid in
-                        OpenFluxStartPacketTunnel(
-                            UnsafeMutablePointer(mutating: tt),
-                            UnsafeMutablePointer(mutating: u),
-                            UnsafeMutablePointer(mutating: tok),
-                            UnsafeMutablePointer(mutating: uid)
-                        )
+        // Volga Start() does network I/O — never run it on the main thread.
+        let rc: Int32 = await Task.detached(priority: .userInitiated) {
+            transport.withCString { tt in
+                url.withCString { u in
+                    maxToken.withCString { tok in
+                        maxUid.withCString { uid in
+                            OpenFluxStartPacketTunnel(
+                                UnsafeMutablePointer(mutating: tt),
+                                UnsafeMutablePointer(mutating: u),
+                                UnsafeMutablePointer(mutating: tok),
+                                UnsafeMutablePointer(mutating: uid)
+                            )
+                        }
                     }
                 }
             }
-        }
+        }.value
 
         guard rc == 0 else {
             throw OpenFluxTunnelError.startFailed(Int(rc))
         }
 
         log.releaseInfo("OpenFlux packet tunnel started (\(transport))")
-        startHeartbeat()
         startReadLoop()
         startWriteLoop()
     }
 
     func stop() {
-        heartbeat?.cancel()
-        heartbeat = nil
         writeLoopRunning = false
         OpenFluxStopPacketTunnel()
         tunnel = nil
         log.releaseInfo("OpenFlux packet tunnel stopped")
-    }
-
-    private func startHeartbeat() {
-        heartbeat?.cancel()
-        let timer = DispatchSource.makeTimerSource(queue: .global(qos: .utility))
-        timer.schedule(deadline: .now() + 5, repeating: 5)
-        timer.setEventHandler { [weak self] in
-            self?.log.releaseInfo("OpenFlux heartbeat alive")
-        }
-        heartbeat = timer
-        timer.resume()
     }
 
     private func startReadLoop() {
@@ -97,38 +87,25 @@ final class OpenFluxTunnelService {
     private func startWriteLoop() {
         guard !writeLoopRunning else { return }
         writeLoopRunning = true
-        // Retain provider for the lifetime of the blocking Go read (upstream pattern).
         let tunnel = self.tunnel
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             let maxLen: Int32 = 4096
             let buf = UnsafeMutablePointer<CChar>.allocate(capacity: Int(maxLen))
             defer { buf.deallocate() }
             var written = 0
-            var emptySkips = 0
             while true {
                 guard let self, self.writeLoopRunning else { break }
                 let n = OpenFluxTunReadPacket(buf, maxLen)
-                if n < 0 {
-                    break
-                }
+                if n < 0 { break }
                 if n == 0 {
-                    // outQ/ctx not ready — never busy-spin (freezes the phone).
-                    emptySkips += 1
-                    if emptySkips == 1 || emptySkips % 50 == 0 {
-                        self.log.releaseInfo("OpenFlux TunRead empty skip=\(emptySkips)")
-                    }
-                    if emptySkips > 200 {
-                        self.log.releaseInfo("OpenFlux TunRead empty storm, ending write loop")
-                        break
-                    }
-                    Thread.sleep(forTimeInterval: 0.02)
+                    // Should be rare; never busy-spin.
+                    Thread.sleep(forTimeInterval: 0.05)
                     continue
                 }
-                emptySkips = 0
                 let data = Data(bytes: buf, count: Int(n))
                 tunnel?.packetFlow.writePackets([data], withProtocols: [NSNumber(value: AF_INET)])
                 written += 1
-                if written == 1 || written % 200 == 0 {
+                if written == 1 || written % 500 == 0 {
                     self.log.releaseInfo("OpenFlux downlink packets written=\(written)")
                 }
             }

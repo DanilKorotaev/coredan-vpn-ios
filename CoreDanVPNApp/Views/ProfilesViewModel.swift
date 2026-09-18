@@ -1,5 +1,4 @@
 import Foundation
-import NetworkExtension
 
 @MainActor
 final class ProfilesViewModel: ObservableObject {
@@ -67,23 +66,6 @@ final class ProfilesViewModel: ObservableObject {
         status = await vpn.status()
     }
 
-    /// Observe system VPN status so Control Center / jetsam flaps show up in app logs.
-    func startStatusObservation() {
-        NotificationCenter.default.addObserver(
-            forName: .NEVPNStatusDidChange,
-            object: nil,
-            queue: .main
-        ) { [weak self] note in
-            guard let session = note.object as? NETunnelProviderSession else { return }
-            let raw = session.status.rawValue
-            Task { @MainActor in
-                guard let self else { return }
-                self.log.releaseInfo("NEVPNStatusDidChange raw=\(raw)")
-                await self.refreshStatus()
-            }
-        }
-    }
-
     func toggleConnection() async {
         isBusy = true
         defer { isBusy = false }
@@ -97,6 +79,7 @@ final class ProfilesViewModel: ObservableObject {
             }
         default:
             guard let profile = selectedProfile else { return }
+            status = .connecting
             do {
                 switch profile.kind {
                 case .shadowsocks:
