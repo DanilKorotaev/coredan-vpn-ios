@@ -9,7 +9,7 @@ settings:
   base:
     SWIFT_VERSION: "5.9"
     CURRENT_PROJECT_VERSION: "1"
-    MARKETING_VERSION: "0.1.0"
+    MARKETING_VERSION: "1.1.0"
     DEVELOPMENT_TEAM: "66C9VGAZR5"
 configFiles:
   Debug: Config/Debug.xcconfig

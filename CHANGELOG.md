@@ -12,44 +12,24 @@ On each successful **main → TestFlight** deploy, CI auto-bumps **PATCH** (unle
 
 ## [Unreleased]
 
-## [0.1.0] - 2026-09-18
-
 ### Changed
 
-- OpenFlux VOLGA profiles alongside Shadowsocks
-- Automatic TestFlight deploy after green CI on main (SemVer + changelog + `ios/v*` tags)
-- OpenFlux VPN badge flap from NE reasserts (`includeAllNetworks`, memory limit)
-- OpenFlux downlink dying on empty packets
-- OpenFlux VOLGA jetsam in the packet tunnel
-- Initial commit: CoreDan VPN iOS client with Libbox tunnel.
-- Add GitHub Actions CI and Fastlane TestFlight pipeline.
-- Add Telegram CI notifications for tests and TestFlight.
-- Align signing with CoreDan team ID (66C9VGAZR5).
-- Add CoreDan VPN app icon asset catalog.
-- Add OpenFlux VOLGA profiles alongside Shadowsocks.
-- Harden OpenFlux tunnel capture and downlink path.
-- Stop OpenFlux VPN badge flap from NE reasserts.
-- Auto TestFlight after green CI with SemVer releases.
+- Bump marketing version to 1.1.0 (was incorrectly seeded as 0.1.0)
 
-### Fixed
-
-- Fix OpenFlux iOS build script under bash set -u.
-- Fix OpenFlux VOLGA jetsam in the packet tunnel.
-- Fix OpenFlux downlink dying on empty packets.
-
-[Unreleased]: https://github.com/DanilKorotaev/coredan-vpn-ios/compare/ios/v0.1.0...HEAD
-[0.1.0]: https://github.com/DanilKorotaev/coredan-vpn-ios/releases/tag/ios/v0.1.0
+## [0.1.0] - 2026-09-18
 
 ### Added
 
 - OpenFlux VOLGA profiles alongside Shadowsocks
 - Automatic TestFlight deploy after green CI on main (SemVer + changelog + `ios/v*` tags)
+- CoreDan VPN iOS client with Libbox tunnel, CI, and TestFlight pipeline
 
 ### Fixed
 
 - OpenFlux VPN badge flap from NE reasserts (`includeAllNetworks`, memory limit)
 - OpenFlux downlink dying on empty packets
 - OpenFlux VOLGA jetsam in the packet tunnel
+- OpenFlux iOS build script under bash `set -u`
 
 [Unreleased]: https://github.com/DanilKorotaev/coredan-vpn-ios/compare/ios/v0.1.0...HEAD
 [0.1.0]: https://github.com/DanilKorotaev/coredan-vpn-ios/releases/tag/ios/v0.1.0
