@@ -58,8 +58,8 @@ final class OpenFluxTunnelService {
     }
 
     func stop() {
-        OpenFluxStopPacketTunnel()
         writeLoopRunning = false
+        OpenFluxStopPacketTunnel()
         log.releaseInfo("OpenFlux packet tunnel stopped")
     }
 
@@ -87,10 +87,23 @@ final class OpenFluxTunnelService {
             let buf = UnsafeMutablePointer<CChar>.allocate(capacity: Int(maxLen))
             defer { buf.deallocate() }
             var written = 0
+            var emptySkips = 0
             while true {
                 guard let self, self.writeLoopRunning else { break }
                 let n = OpenFluxTunReadPacket(buf, maxLen)
-                if n <= 0 { break }
+                if n < 0 {
+                    // Go reports real stop (ctx cancelled).
+                    break
+                }
+                if n == 0 {
+                    // Should be rare after Go patch; do not treat as EOF.
+                    emptySkips += 1
+                    if emptySkips == 1 || emptySkips % 50 == 0 {
+                        self.log.releaseInfo("OpenFlux TunRead empty skip=\(emptySkips)")
+                    }
+                    continue
+                }
+                emptySkips = 0
                 let data = Data(bytes: buf, count: Int(n))
                 tunnel?.packetFlow.writePackets([data], withProtocols: [NSNumber(value: AF_INET)])
                 written += 1

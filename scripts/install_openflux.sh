@@ -73,10 +73,50 @@ if 'vyandex' not in text:
 \tcase "oneme":'''
     if needle not in text:
         raise SystemExit("export_ios_packet.go: unexpected format, cannot patch vyandex")
-    packet.write_text(text.replace(needle, replacement, 1))
+    text = text.replace(needle, replacement, 1)
     print("Patched export_ios_packet.go (vyandex)")
 else:
     print("vyandex already in export_ios_packet.go")
+
+# 1b) TunReadPacket: empty payloads must NOT return 0 — Swift treats <=0 as EOF and
+# kills the downlink loop while the VPN stays "connected" (sites never load).
+old_read = '''\tselect {
+\tcase data := <-outQ:
+\t\tn := len(data)
+\t\tif n > int(max) {
+\t\t\tn = int(max)
+\t\t}
+\t\tdst := unsafe.Slice((*byte)(unsafe.Pointer(buf)), int(max))
+\t\tcopy(dst[:n], data[:n])
+\t\treturn C.int(n)
+\tcase <-ctx.Done():
+\t\treturn 0
+\t}'''
+new_read = '''\tfor {
+\t\tselect {
+\t\tcase data := <-outQ:
+\t\t\tif len(data) == 0 {
+\t\t\t\tcontinue // keepalives / empty frames — not EOF
+\t\t\t}
+\t\t\tn := len(data)
+\t\t\tif n > int(max) {
+\t\t\t\tn = int(max)
+\t\t\t}
+\t\t\tdst := unsafe.Slice((*byte)(unsafe.Pointer(buf)), int(max))
+\t\t\tcopy(dst[:n], data[:n])
+\t\t\treturn C.int(n)
+\t\tcase <-ctx.Done():
+\t\t\treturn -1 // real stop
+\t\t}
+\t}'''
+if old_read not in text:
+    raise SystemExit("export_ios_packet.go: TunReadPacket select block not found")
+if 'keepalives / empty frames' not in text:
+    text = text.replace(old_read, new_read, 1)
+    print("Patched OpenFluxTunReadPacket (empty!=EOF, stop=-1)")
+else:
+    print("TunReadPacket already patched")
+packet.write_text(text)
 
 # 2) Default VolgaConfig is sized for VPS exit (2000 workers / 1M queue) and
 # jetsams NEPacketTunnelProvider (~50MB). Shrink for the iOS client lib.
