@@ -7,6 +7,7 @@ main→TestFlight ship (commit lands after upload).
 
 | Version | Build (CI) | Git tag | Date | Notes |
 |---------|------------|---------|------|-------|
+| 1.1.3 | 15 | `ios/v1.1.3` | 2026-09-18 | Shrink Volga 16MiB buffers that jetsam the NE. |
 | 1.1.2 | 14 | `ios/v1.1.2` | 2026-09-18 | Undo GC thrash that froze the phone. |
 | 1.1.1 | 13 | `ios/v1.1.1` | 2026-09-18 | Stop NE jetsam from Volga memory pressure. |
 | 1.1.0 | 12 | `ios/v1.1.0` | 2026-09-18 | Set marketing version to 1.1.0 |
