@@ -116,6 +116,53 @@ if 'keepalives / empty frames' not in text:
     print("Patched OpenFluxTunReadPacket (empty!=EOF, stop=-1)")
 else:
     print("TunReadPacket already patched")
+
+# 1c) Soft memory cap 40MiB is too tight for VOLGA and jetsams the appex;
+# iOS then reasserts the VPN (badge flaps). Raise soft limit / GC.
+text2, nmem = re.subn(
+    r"debug\.SetMemoryLimit\(40 << 20\)",
+    "debug.SetMemoryLimit(120 << 20) // iOS NE: was 40MiB (VOLGA jetsam)",
+    text,
+    count=1,
+)
+text2, ngc = re.subn(
+    r"debug\.SetGCPercent\(20\)",
+    "debug.SetGCPercent(50)",
+    text2,
+    count=1,
+)
+if nmem == 0:
+    raise SystemExit("export_ios_packet.go: MemoryLimit patch failed")
+text = text2
+print(f"Patched memory limit/GC ({nmem},{ngc})")
+
+# 1d) Drop empty frames before they hit the TUN read queue.
+old_recv = '''\toutQ := make(chan []byte, 1024)
+\t// Packets coming back from the exit node -> queue for the device.
+\tt.Receive(func(data []byte) {
+\t\tselect {
+\t\tcase outQ <- append([]byte(nil), data...):
+\t\tdefault: // queue full: drop, TCP will retransmit
+\t\t}
+\t})'''
+new_recv = '''\toutQ := make(chan []byte, 1024)
+\t// Packets coming back from the exit node -> queue for the device.
+\tt.Receive(func(data []byte) {
+\t\tif len(data) == 0 {
+\t\t\treturn
+\t\t}
+\t\tselect {
+\t\tcase outQ <- append([]byte(nil), data...):
+\t\tdefault: // queue full: drop, TCP will retransmit
+\t\t}
+\t})'''
+if old_recv not in text:
+    raise SystemExit("export_ios_packet.go: Receive queue block not found")
+if 'if len(data) == 0' not in text.split('outQ := make')[1][:400]:
+    text = text.replace(old_recv, new_recv, 1)
+    print("Patched Receive to drop empty frames")
+else:
+    print("Receive empty-drop already present")
 packet.write_text(text)
 
 # 2) Default VolgaConfig is sized for VPS exit (2000 workers / 1M queue) and

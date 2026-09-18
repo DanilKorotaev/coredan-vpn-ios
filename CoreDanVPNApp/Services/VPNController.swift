@@ -144,9 +144,13 @@ final class VPNController: VPNControllerProtocol, @unchecked Sendable {
         proto.serverAddress = profile.kind == .openflux ? "OpenFlux" : profile.host
         proto.providerConfiguration = providerConfiguration
         if #available(iOS 16.4, *) {
-            // Match upstream OpenFlux + capture cellular traffic reliably.
-            proto.includeAllNetworks = true
-            proto.enforceRoutes = true
+            // OpenFlux must NOT use includeAllNetworks: it can suck Volga/Yandex
+            // control traffic into the tunnel, crash the extension, and iOS will
+            // reassert → VPN badge flaps. Upstream OpenFlux leaves these false.
+            // Shadowsocks/Libbox still needs full capture.
+            let fullCapture = profile.kind == .shadowsocks
+            proto.includeAllNetworks = fullCapture
+            proto.enforceRoutes = fullCapture
         }
         manager.protocolConfiguration = proto
         manager.localizedDescription = profile.name
