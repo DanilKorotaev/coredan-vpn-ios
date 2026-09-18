@@ -69,9 +69,8 @@ final class OpenFluxTunnelService {
             guard let self else { return }
             for packet in packets {
                 packet.withUnsafeBytes { raw in
-                    if let base = raw.bindMemory(to: CChar.self).baseAddress {
-                        OpenFluxTunWritePacket(UnsafeMutablePointer(mutating: base), Int32(packet.count))
-                    }
+                    guard let base = raw.baseAddress?.assumingMemoryBound(to: CChar.self) else { return }
+                    OpenFluxTunWritePacket(UnsafeMutablePointer(mutating: base), Int32(packet.count))
                 }
             }
             self.startReadLoop()
@@ -81,17 +80,26 @@ final class OpenFluxTunnelService {
     private func startWriteLoop() {
         guard !writeLoopRunning else { return }
         writeLoopRunning = true
+        // Retain the provider for the lifetime of the blocking Go read loop.
+        let tunnel = self.tunnel
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             let maxLen: Int32 = 4096
             let buf = UnsafeMutablePointer<CChar>.allocate(capacity: Int(maxLen))
             defer { buf.deallocate() }
+            var written = 0
             while true {
                 guard let self, self.writeLoopRunning else { break }
                 let n = OpenFluxTunReadPacket(buf, maxLen)
                 if n <= 0 { break }
                 let data = Data(bytes: buf, count: Int(n))
-                self.tunnel?.packetFlow.writePackets([data], withProtocols: [NSNumber(value: AF_INET)])
+                tunnel?.packetFlow.writePackets([data], withProtocols: [NSNumber(value: AF_INET)])
+                written += 1
+                if written == 1 || written % 200 == 0 {
+                    self.log.releaseInfo("OpenFlux downlink packets written=\(written)")
+                }
             }
+            self?.log.releaseInfo("OpenFlux write loop ended (written=\(written))")
+            self?.writeLoopRunning = false
         }
     }
 }

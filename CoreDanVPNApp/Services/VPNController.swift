@@ -144,10 +144,9 @@ final class VPNController: VPNControllerProtocol, @unchecked Sendable {
         proto.serverAddress = profile.kind == .openflux ? "OpenFlux" : profile.host
         proto.providerConfiguration = providerConfiguration
         if #available(iOS 16.4, *) {
-            // Keep false for OpenFlux so Control Center disconnect is reliable;
-            // SS still captures full traffic via sing-box TUN.
-            proto.includeAllNetworks = profile.kind == .shadowsocks
-            proto.enforceRoutes = profile.kind == .shadowsocks
+            // Match upstream OpenFlux + capture cellular traffic reliably.
+            proto.includeAllNetworks = true
+            proto.enforceRoutes = true
         }
         manager.protocolConfiguration = proto
         manager.localizedDescription = profile.name
