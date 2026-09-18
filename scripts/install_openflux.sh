@@ -117,40 +117,54 @@ if 'keepalives / empty frames' not in text:
 else:
     print("TunReadPacket already patched")
 
-# 1c) REMOVE soft memory cap. Upstream SetMemoryLimit(40MiB) + our tighter
-# caps caused GC thrash (phone freezes) and still jetsammed under Volga.
-# Let the process use memory normally; iOS hard jetsam remains the ceiling.
+# 1c) Soft memory tip just under typical NE jetsam (~50MiB). Unlimited growth
+# survives idle connect then dies under Telegram load (no stopTunnel in logs).
+# Keep GC mild (40) — GCPercent(10) froze the phone earlier.
 text2, nmem = re.subn(
     r"\t// Keep the extension well under the NE memory cap\.\n\tdebug\.SetMemoryLimit\(40 << 20\)\n\tdebug\.SetGCPercent\(20\)\n\n",
-    "\t// iOS CoreDan: do NOT SetMemoryLimit — soft caps thrash GC / freeze the phone.\n\n",
+    "\tdebug.SetMemoryLimit(45 << 20) // iOS NE: tip under ~50MiB jetsam\n\tdebug.SetGCPercent(40)\n\n",
     text,
     count=1,
 )
 if nmem == 0:
-    # Fallback if comment text drifts
     text2, nmem = re.subn(
         r"\tdebug\.SetMemoryLimit\(40 << 20\)\n\tdebug\.SetGCPercent\(20\)\n",
-        "\t// iOS CoreDan: SetMemoryLimit removed (GC thrash).\n",
+        "\tdebug.SetMemoryLimit(45 << 20) // iOS NE: tip under ~50MiB jetsam\n\tdebug.SetGCPercent(40)\n",
         text,
         count=1,
     )
-if nmem == 0:
-    raise SystemExit("export_ios_packet.go: could not remove SetMemoryLimit")
+# If a previous CoreDan build already removed SetMemoryLimit, re-insert it.
+if nmem == 0 and "SetMemoryLimit" not in text:
+    text2, nmem = re.subn(
+        r"(\tif ptOn \{\n\t\treturn C\.int\(startAlreadyRunning\)\n\t\}\n\n)",
+        r"\1\tdebug.SetMemoryLimit(45 << 20) // iOS NE: tip under ~50MiB jetsam\n\tdebug.SetGCPercent(40)\n\n",
+        text,
+        count=1,
+    )
+    if nmem and '"runtime/debug"' not in text2:
+        text2 = text2.replace(
+            '\t"runtime"\n',
+            '\t"runtime"\n\t"runtime/debug"\n',
+            1,
+        )
+        if '"runtime/debug"' not in text2:
+            text2 = text2.replace(
+                '\t"context"\n',
+                '\t"context"\n\t"runtime/debug"\n',
+                1,
+            )
+if nmem == 0 and "45 << 20" not in text2:
+    raise SystemExit("export_ios_packet.go: could not set SetMemoryLimit(45MiB)")
 text = text2
-print(f"Removed SetMemoryLimit/GCPercent ({nmem})")
+print(f"SetMemoryLimit 45MiB / GC 40 ({nmem})")
 
-# Drop unused debug import if it becomes unused — keep import; Go compiler
-# will fail if debug is unused. Re-add a harmless reference or remove import.
-if "debug." not in text.split("func OpenFluxStartPacketTunnel")[1].split("//export OpenFluxTunWritePacket")[0]:
-    text2, nimp = re.subn(
-        r"\t\"runtime/debug\"\n",
-        "",
-        text,
-        count=1,
-    )
-    if nimp:
-        text = text2
-        print("Removed unused runtime/debug import")
+# Ensure debug import present when we call SetMemoryLimit
+if "SetMemoryLimit" in text and '"runtime/debug"' not in text:
+    if '\t"runtime"\n' in text:
+        text = text.replace('\t"runtime"\n', '\t"runtime"\n\t"runtime/debug"\n', 1)
+    else:
+        text = text.replace('\t"context"\n', '\t"context"\n\t"runtime/debug"\n', 1)
+    print("Restored runtime/debug import")
 
 # 1d) Drop empty frames before they hit the TUN read queue.
 old_recv = '''\toutQ := make(chan []byte, 1024)
@@ -181,21 +195,19 @@ else:
     print("Receive empty-drop already present")
 packet.write_text(text)
 
-# 2) Fix NE footguns only:
-# - b64BufPool 16MiB pre-alloc (instant pressure)
-# - QueueSize 1e6 empty channel slots
-# - WorkerCount 2000 (VPS exit default — freezes a phone on Start; 64 is enough)
-# Do NOT SetMemoryLimit / starve batch sizes.
+# 2) NE footguns: 16MiB b64 pool, 1e6 queue, 2000 workers (VPS defaults).
+# Soft SetMemoryLimit is set above; keep workers modest under Telegram load.
 vtext = volga.read_text()
 replacements = [
     (
         r"New: func\(\) interface\{\} \{ return make\(\[\]byte, 0, 16\*1024\*1024\) \},",
         "New: func() interface{} { return make([]byte, 0, 256*1024) }, // iOS NE: was 16MiB footgun",
     ),
-    (r"WorkerCount:\s*2000,", "WorkerCount: 64, // iOS NE: VPS default 2000 freezes Start()"),
-    (r"QueueSize:\s*1000000,", "QueueSize: 8192, // iOS NE: channel slots (was 1000000)"),
-    (r"MaxIdleConnsPerHost:\s*2000,", "MaxIdleConnsPerHost: 64,"),
-    (r"MaxIdleConns:\s*4000,", "MaxIdleConns: 128,"),
+    (r"WorkerCount:\s*2000,", "WorkerCount: 32, // iOS NE: under Telegram load 64 still jetsams"),
+    (r"QueueSize:\s*1000000,", "QueueSize: 4096, // iOS NE: channel slots (was 1000000)"),
+    (r"MaxIdleConnsPerHost:\s*2000,", "MaxIdleConnsPerHost: 32,"),
+    (r"MaxIdleConns:\s*4000,", "MaxIdleConns: 64,"),
+    (r"BatchTimeout:\s*2 \* time\.Millisecond,", "BatchTimeout: 8 * time.Millisecond, // iOS NE: coalesce HTTP"),
 ]
 counts = []
 for pat, rep in replacements:

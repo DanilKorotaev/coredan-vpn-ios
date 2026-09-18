@@ -8,6 +8,7 @@ import NetworkExtension
 final class OpenFluxTunnelService {
     private let log = makeLogger(tag: .openflux)
     private let tunnel: NEPacketTunnelProvider
+    private var heartbeat: DispatchSourceTimer?
 
     init(tunnel: NEPacketTunnelProvider) {
         self.tunnel = tunnel
@@ -57,13 +58,27 @@ final class OpenFluxTunnelService {
         }
 
         log.releaseInfo("OpenFlux packet tunnel started (\(transport))")
+        startHeartbeat()
         startReadLoop()
         startWriteLoop()
     }
 
     func stop() {
+        heartbeat?.cancel()
+        heartbeat = nil
         OpenFluxStopPacketTunnel()
         log.releaseInfo("OpenFlux packet tunnel stopped")
+    }
+
+    private func startHeartbeat() {
+        heartbeat?.cancel()
+        let timer = DispatchSource.makeTimerSource(queue: .global(qos: .utility))
+        timer.schedule(deadline: .now() + 10, repeating: 10)
+        timer.setEventHandler { [weak self] in
+            self?.log.releaseInfo("OpenFlux heartbeat alive")
+        }
+        heartbeat = timer
+        timer.resume()
     }
 
     /// Device → Go (upstream `startReadLoop`).
