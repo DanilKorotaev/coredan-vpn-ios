@@ -16,7 +16,9 @@ final class OpenFluxTunnelService {
             throw OpenFluxTunnelError.tunnelDeallocated
         }
 
-        OpenFluxSetDebug(verbose ? 1 : 0)
+        // Always on for NE start path — file log may not flush if Go jetsams the process.
+        OpenFluxSetDebug(1)
+        log.releaseInfo("OpenFlux NE settings (transport=\(transport))")
 
         let settings = NEPacketTunnelNetworkSettings(tunnelRemoteAddress: "127.0.0.1")
         let ipv4 = NEIPv4Settings(addresses: ["10.10.10.2"], subnetMasks: ["255.255.255.0"])
@@ -29,6 +31,7 @@ final class OpenFluxTunnelService {
         settings.dnsSettings = dns
 
         try await tunnel.setTunnelNetworkSettings(settings)
+        log.releaseInfo("OpenFlux NE settings applied, calling liboflux…")
 
         let rc = transport.withCString { tt in
             url.withCString { u in

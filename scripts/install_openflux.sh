@@ -48,32 +48,68 @@ if [[ -n "${OPENFLUX_COMMIT:-}" ]]; then
 fi
 
 PACKET="$TMP/OpenFlux/export_ios_packet.go"
-if ! grep -q 'vyandex' "$PACKET"; then
-  echo "Patching export_ios_packet.go for vyandex (VOLGA)..."
-  python3 - <<'PY' "$PACKET"
-import pathlib, sys
-path = pathlib.Path(sys.argv[1])
-text = path.read_text()
-needle = '''\tswitch tt {
+VOLGA="$TMP/OpenFlux/transport/yandex/vyandex.go"
+
+echo "Patching OpenFlux for iOS Network Extension (vyandex + low-memory Volga)..."
+python3 - <<'PY' "$PACKET" "$VOLGA"
+import pathlib, sys, re
+
+packet = pathlib.Path(sys.argv[1])
+volga = pathlib.Path(sys.argv[2])
+
+# 1) Packet tunnel: accept vyandex/volga (upstream only has yandex/oneme).
+text = packet.read_text()
+if 'vyandex' not in text:
+    needle = '''\tswitch tt {
 \tcase "yandex", "":
 \t\tt = transport.NewCompressedTransport(yandex.NewYandexDocsTransport(docURL, config))
 \tcase "oneme":'''
-replacement = '''\tswitch tt {
+    replacement = '''\tswitch tt {
 \tcase "yandex", "":
 \t\tt = transport.NewCompressedTransport(yandex.NewYandexDocsTransport(docURL, config))
 \tcase "vyandex", "volga":
-\t\t// VOLGA (new Yandex Docs editor). Codec = CompressedTransport (legacy LZ4),
-\t\t// matching --codec=legacy on the exit-node.
+\t\t// VOLGA + legacy LZ4 (CompressedTransport) — must match exit --codec=legacy.
 \t\tt = transport.NewCompressedTransport(yandex.NewYandexVolgaTransport(docURL, config))
 \tcase "oneme":'''
-if needle not in text:
-    raise SystemExit("export_ios_packet.go: unexpected format, cannot patch vyandex")
-path.write_text(text.replace(needle, replacement, 1))
-print("Patched OK")
+    if needle not in text:
+        raise SystemExit("export_ios_packet.go: unexpected format, cannot patch vyandex")
+    packet.write_text(text.replace(needle, replacement, 1))
+    print("Patched export_ios_packet.go (vyandex)")
+else:
+    print("vyandex already in export_ios_packet.go")
+
+# 2) Default VolgaConfig is sized for VPS exit (2000 workers / 1M queue) and
+# jetsams NEPacketTunnelProvider (~50MB). Shrink for the iOS client lib.
+vtext = volga.read_text()
+vtext2, n = re.subn(
+    r"WorkerCount:\s*2000,",
+    "WorkerCount: 64, // iOS NE: was 2000 (jetsam)",
+    vtext,
+    count=1,
+)
+vtext2, n2 = re.subn(
+    r"QueueSize:\s*1000000,",
+    "QueueSize: 4096, // iOS NE: was 1000000",
+    vtext2,
+    count=1,
+)
+vtext2, n3 = re.subn(
+    r"MaxIdleConnsPerHost:\s*2000,",
+    "MaxIdleConnsPerHost: 32,",
+    vtext2,
+    count=1,
+)
+vtext2, n4 = re.subn(
+    r"MaxIdleConns:\s*4000,",
+    "MaxIdleConns: 64,",
+    vtext2,
+    count=1,
+)
+if n + n2 + n3 + n4 == 0:
+    raise SystemExit("vyandex.go: could not patch DefaultVolgaConfig for iOS memory")
+volga.write_text(vtext2)
+print(f"Patched DefaultVolgaConfig (workers/queue/idle conns: {n},{n2},{n3},{n4})")
 PY
-else
-  echo "vyandex already present in export_ios_packet.go"
-fi
 
 build_slice() {
   local sdk="$1"
