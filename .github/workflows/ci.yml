@@ -4,6 +4,7 @@ on:
   pull_request:
   push:
     branches: [main]
+    # ios/v* tags and [skip ci] release commits must not re-run CI / Deploy.
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true

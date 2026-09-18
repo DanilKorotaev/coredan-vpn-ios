@@ -2,6 +2,7 @@
 
 require "json"
 require "shellwords"
+require "fileutils"
 
 opt_out_usage
 
@@ -64,6 +65,15 @@ platform :ios do
     end
     match(**match_params)
 
+    marketing = read_marketing_version!
+    sync_script = File.expand_path("../scripts/ci/sync_marketing_version.sh", __dir__)
+    UI.user_error!("Missing #{sync_script}") unless File.file?(sync_script)
+    sh("bash", sync_script)
+    increment_version_number(
+      xcodeproj: "CoreDanVPN.xcodeproj",
+      version_number: marketing
+    )
+
     increment_build_number(
       xcodeproj: "CoreDanVPN.xcodeproj",
       build_number: ENV["GITHUB_RUN_NUMBER"]
@@ -113,7 +123,10 @@ platform :ios do
       }
     )
 
+    configure_deliver_altool_for_xcode26!(platform: "ios", apple_id: ENV["ASC_APPLE_ID"].to_s.strip)
+
     upload_to_testflight(
+      app_identifier: app_id,
       skip_waiting_for_build_processing: true
     )
 
@@ -123,6 +136,20 @@ platform :ios do
       target: "CoreDanVPNApp"
     )
   end
+end
+
+# Xcode 26+ new altool breaks fastlane's `--upload-app -f` + `-t ios` combo.
+# https://github.com/fastlane/fastlane/issues/29743
+def configure_deliver_altool_for_xcode26!(platform:, apple_id:)
+  existing = ENV["DELIVER_ALTOOL_ADDITIONAL_UPLOAD_PARAMETERS"].to_s.strip
+  additions = []
+  additions << "--use-old-altool" unless existing.include?("--use-old-altool")
+  additions << "--apple-id #{apple_id}" unless apple_id.to_s.empty? || existing.include?("--apple-id")
+  unless existing.include?("--platform") || additions.include?("--use-old-altool") || existing.include?("--use-old-altool")
+    additions << "--platform #{platform}"
+  end
+  ENV["DELIVER_ALTOOL_ADDITIONAL_UPLOAD_PARAMETERS"] = [existing, *additions].reject(&:empty?).join(" ")
+  UI.message("DELIVER_ALTOOL_ADDITIONAL_UPLOAD_PARAMETERS=#{ENV['DELIVER_ALTOOL_ADDITIONAL_UPLOAD_PARAMETERS']}")
 end
 
 def write_ci_testflight_metadata(app_identifier:, xcodeproj:, target:)
@@ -135,6 +162,18 @@ def write_ci_testflight_metadata(app_identifier:, xcodeproj:, target:)
   }
   File.write(File.join(output_dir, "ci_testflight.json"), JSON.pretty_generate(payload))
   UI.success("Wrote #{output_dir}/ci_testflight.json")
+end
+
+def read_marketing_version!
+  path = File.expand_path("../VERSION", __dir__)
+  UI.user_error!("VERSION file missing at #{path}") unless File.file?(path)
+  version = File.read(path).strip
+  UI.user_error!("VERSION is empty") if version.empty?
+  unless version.match?(/\A\d+\.\d+\.\d+([.-][0-9A-Za-z.-]+)?\z/)
+    UI.user_error!("VERSION must be SemVer MAJOR.MINOR.PATCH, got: #{version.inspect}")
+  end
+  UI.message("Marketing version from VERSION: #{version}")
+  version
 end
 
 def enforce_line_coverage_threshold(output_dir)

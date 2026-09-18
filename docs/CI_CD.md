@@ -7,7 +7,17 @@ GitHub Actions + Fastlane (same pattern as [knowledge-base-app-ios](https://gith
 | Workflow | Trigger | What it does |
 |----------|---------|----------------|
 | [CI](../.github/workflows/ci.yml) | PR + push to `main` | Build Libbox + OpenFlux → XcodeGen → unit tests + coverage gate (≥15%) |
-| [Deploy TestFlight](../.github/workflows/deploy-testflight.yml) | Manual | Match signing → archive → TestFlight |
+| [Deploy TestFlight](../.github/workflows/deploy-testflight.yml) | After green CI on `main` push, or manual | SemVer prepare → Match → archive → TestFlight → `VERSION`/`CHANGELOG`/`ios/v*` tag |
+
+**Not triggered by:** git tags (`ios/v*`), or commits with `[skip ci]` (release metadata commits).
+
+Default path:
+
+```text
+push to main → CI tests → Deploy TestFlight → PATCH bump + changelog → upload → tag ios/vX.Y.Z
+```
+
+Full SemVer rules: [RELEASE_PROCESS.md](RELEASE_PROCESS.md). History: [CHANGELOG.md](../CHANGELOG.md), [RELEASES.md](RELEASES.md).
 
 Libbox and liboflux are **not** in git; CI caches `ThirdParty/Libbox.xcframework` and `ThirdParty/OpenFlux` and builds on cache miss.
 
@@ -59,7 +69,9 @@ export TEAM_ID='66C9VGAZR5'
 bundle exec fastlane match appstore
 ```
 
-Then add secrets in GitHub → **Settings → Secrets and variables → Actions**, and run **Actions → Deploy TestFlight → Run workflow**.
+Then add secrets in GitHub → **Settings → Secrets and variables → Actions**. After that, every green push to `main` ships TestFlight automatically. Manual: **Actions → Deploy TestFlight → Run workflow** (optional bump=`minor`/`major`).
+
+Workflow needs `contents: write` (already set) so the bot can push the release commit and `ios/v*` tag.
 
 ## Telegram notifications
 
@@ -96,7 +108,8 @@ UI, VPNController, Keychain, and extension code are **not** covered yet — henc
 |-------|-----|
 | CI: `Libbox not found` | Cache miss — ensure `setup-go` step runs; check `install_libbox.sh` log |
 | CI: no simulator | Workflow auto-picks an iPhone simulator; set `SCAN_DEVICE` locally |
-| TestFlight: extension signing | Match must include **both** app + extension profiles; enable capabilities on App ID |
+| TestFlight: extension signing | Match must include **all three** profiles (app + PacketTunnel + OpenFluxTunnel) |
 | `YOUR_TEAM_ID` in archive | Deploy workflow writes `Config/Secrets.xcconfig` from `TEAM_ID` secret |
+| Upload OK, no tag | Check `commit_and_tag_release` step / Actions permissions (`contents: write`) |
 
-See also [FASTLANE.md](FASTLANE.md) and [SETUP.md](SETUP.md).
+See also [FASTLANE.md](FASTLANE.md), [RELEASE_PROCESS.md](RELEASE_PROCESS.md), and [SETUP.md](SETUP.md).
