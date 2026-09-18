@@ -112,10 +112,16 @@ final class OpenFluxTunnelService {
                     break
                 }
                 if n == 0 {
+                    // outQ/ctx not ready — never busy-spin (freezes the phone).
                     emptySkips += 1
                     if emptySkips == 1 || emptySkips % 50 == 0 {
                         self.log.releaseInfo("OpenFlux TunRead empty skip=\(emptySkips)")
                     }
+                    if emptySkips > 200 {
+                        self.log.releaseInfo("OpenFlux TunRead empty storm, ending write loop")
+                        break
+                    }
+                    Thread.sleep(forTimeInterval: 0.02)
                     continue
                 }
                 emptySkips = 0
