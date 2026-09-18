@@ -117,17 +117,18 @@ if 'keepalives / empty frames' not in text:
 else:
     print("TunReadPacket already patched")
 
-# 1c) Soft memory cap 40MiB is too tight for VOLGA and jetsams the appex;
-# iOS then reasserts the VPN (badge flaps). Raise soft limit / GC.
+# 1c) Soft memory cap must stay BELOW iOS NE jetsam (~50MiB). Raising it to
+# 120MiB disabled early GC and the appex gets jetsammed → VPN badge flaps.
+# Keep a tight soft limit + aggressive GC, and shrink Volga (below).
 text2, nmem = re.subn(
     r"debug\.SetMemoryLimit\(40 << 20\)",
-    "debug.SetMemoryLimit(120 << 20) // iOS NE: was 40MiB (VOLGA jetsam)",
+    "debug.SetMemoryLimit(35 << 20) // iOS NE jetsam ~50MiB — soft cap forces GC",
     text,
     count=1,
 )
 text2, ngc = re.subn(
     r"debug\.SetGCPercent\(20\)",
-    "debug.SetGCPercent(50)",
+    "debug.SetGCPercent(10)",
     text2,
     count=1,
 )
@@ -136,7 +137,19 @@ if nmem == 0:
 text = text2
 print(f"Patched memory limit/GC ({nmem},{ngc})")
 
-# 1d) Drop empty frames before they hit the TUN read queue.
+# 1d) Cap concurrent DoT resolutions (upstream 16 is heavy under Volga).
+text2, ndns = re.subn(
+    r"var dnsSem = make\(chan struct\{\}, 16\)",
+    "var dnsSem = make(chan struct{}, 4) // iOS NE: was 16",
+    text,
+    count=1,
+)
+if ndns == 0:
+    raise SystemExit("export_ios_packet.go: dnsSem patch failed")
+text = text2
+print(f"Patched dnsSem ({ndns})")
+
+# 1e) Drop empty frames before they hit the TUN read queue.
 old_recv = '''\toutQ := make(chan []byte, 1024)
 \t// Packets coming back from the exit node -> queue for the device.
 \tt.Receive(func(data []byte) {
@@ -166,29 +179,29 @@ else:
 packet.write_text(text)
 
 # 2) Default VolgaConfig is sized for VPS exit (2000 workers / 1M queue) and
-# jetsams NEPacketTunnelProvider (~50MB). Shrink for the iOS client lib.
+# jetsams NEPacketTunnelProvider (~50MB). Shrink hard for the iOS client lib.
 vtext = volga.read_text()
 vtext2, n = re.subn(
     r"WorkerCount:\s*2000,",
-    "WorkerCount: 64, // iOS NE: was 2000 (jetsam)",
+    "WorkerCount: 8, // iOS NE: was 2000 (jetsam)",
     vtext,
     count=1,
 )
 vtext2, n2 = re.subn(
     r"QueueSize:\s*1000000,",
-    "QueueSize: 4096, // iOS NE: was 1000000",
+    "QueueSize: 256, // iOS NE: was 1000000",
     vtext2,
     count=1,
 )
 vtext2, n3 = re.subn(
     r"MaxIdleConnsPerHost:\s*2000,",
-    "MaxIdleConnsPerHost: 32,",
+    "MaxIdleConnsPerHost: 8,",
     vtext2,
     count=1,
 )
 vtext2, n4 = re.subn(
     r"MaxIdleConns:\s*4000,",
-    "MaxIdleConns: 64,",
+    "MaxIdleConns: 16,",
     vtext2,
     count=1,
 )

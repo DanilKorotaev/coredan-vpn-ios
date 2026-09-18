@@ -4,8 +4,10 @@ import NetworkExtension
 /// Bridges NEPacketTunnelProvider packet flow to liboflux (OpenFluxStartPacketTunnel).
 final class OpenFluxTunnelService {
     private let log = makeLogger(tag: .openflux)
-    private weak var tunnel: NEPacketTunnelProvider?
+    /// Strong retain while the tunnel is up — matches upstream OpenFlux write loop.
+    private var tunnel: NEPacketTunnelProvider?
     private var writeLoopRunning = false
+    private var heartbeat: DispatchSourceTimer?
 
     init(tunnel: NEPacketTunnelProvider) {
         self.tunnel = tunnel
@@ -53,14 +55,29 @@ final class OpenFluxTunnelService {
         }
 
         log.releaseInfo("OpenFlux packet tunnel started (\(transport))")
+        startHeartbeat()
         startReadLoop()
         startWriteLoop()
     }
 
     func stop() {
+        heartbeat?.cancel()
+        heartbeat = nil
         writeLoopRunning = false
         OpenFluxStopPacketTunnel()
+        tunnel = nil
         log.releaseInfo("OpenFlux packet tunnel stopped")
+    }
+
+    private func startHeartbeat() {
+        heartbeat?.cancel()
+        let timer = DispatchSource.makeTimerSource(queue: .global(qos: .utility))
+        timer.schedule(deadline: .now() + 5, repeating: 5)
+        timer.setEventHandler { [weak self] in
+            self?.log.releaseInfo("OpenFlux heartbeat alive")
+        }
+        heartbeat = timer
+        timer.resume()
     }
 
     private func startReadLoop() {
@@ -80,7 +97,7 @@ final class OpenFluxTunnelService {
     private func startWriteLoop() {
         guard !writeLoopRunning else { return }
         writeLoopRunning = true
-        // Retain the provider for the lifetime of the blocking Go read loop.
+        // Retain provider for the lifetime of the blocking Go read (upstream pattern).
         let tunnel = self.tunnel
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             let maxLen: Int32 = 4096
@@ -92,11 +109,9 @@ final class OpenFluxTunnelService {
                 guard let self, self.writeLoopRunning else { break }
                 let n = OpenFluxTunReadPacket(buf, maxLen)
                 if n < 0 {
-                    // Go reports real stop (ctx cancelled).
                     break
                 }
                 if n == 0 {
-                    // Should be rare after Go patch; do not treat as EOF.
                     emptySkips += 1
                     if emptySkips == 1 || emptySkips % 50 == 0 {
                         self.log.releaseInfo("OpenFlux TunRead empty skip=\(emptySkips)")

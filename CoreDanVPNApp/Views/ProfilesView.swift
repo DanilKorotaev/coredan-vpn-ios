@@ -69,6 +69,7 @@ struct ProfilesView: View {
                 Text(viewModel.errorMessage ?? "")
             }
             .task {
+                viewModel.startStatusObservation()
                 await viewModel.refreshStatus()
             }
         }
